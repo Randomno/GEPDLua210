@@ -509,6 +509,7 @@ function on_update_camera()
 	end
 	
 	gui.drawText(10, (client.screenheight() - 20), "Camera mode: " .. camera.modes[camera.mode])
+	gui.drawText(420, (client.screenheight() - 20), string.format("X: %d Z: %d", camera.pos_x, camera.pos_z))
 	gui.drawText((client.screenwidth() - 85), (client.screenheight() - 20), "Zoom: " .. camera.zoom .. "x")
 	
 	local target_id_string = "None"
