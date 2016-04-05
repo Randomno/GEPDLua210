@@ -46,10 +46,11 @@ function format_guard_data_value(value, metadata)
 end
 
 function write_guard_data(_slot)
-	local guard_data_string = string.format("base_address: 0x%X\n\n", get_base_address(_slot))
+	local base_address = get_base_address(_slot)
+	local guard_data_string = string.format("base_address: 0x%X\n\n", base_address)
 	
 	for index, metadata in ipairs(guard_data) do
-		local guard_data_value = read_guard_data_value(_slot, metadata.name)	
+		local guard_data_value = read_guard_data_value(base_address, metadata.name)	
 		guard_data_string = guard_data_string .. format_guard_data_value(guard_data_value, metadata) .. "\n"
 	end	
 	

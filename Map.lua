@@ -1,8 +1,8 @@
 require "GameState"
 require "PlayerData"
-require "GuardData"
 require "PositionData"
-require "QuadTree"
+require "Utilities\\QuadTree"
+require "Utilities\\GuardDataReader"
 
 local screen = {}
 
@@ -35,14 +35,14 @@ camera.pos_z = 0.0
 camera.zoom = 2.0
 camera.zoom_min = 1.0
 camera.zoom_max = 10.0
-camera.zoom_step = 1.0
+camera.zoom_step = 0.5
 camera.switch_mode_key = "M"
 camera.zoom_in_key = "NumberPadPlus"
 camera.zoom_out_key = "NumberPadMinus"
 
 local target = {}
 
-target.id = nil
+target.id = 0xFF
 target.scale = 3.0
 target.pick_radius = 5.0
 
@@ -231,40 +231,66 @@ function draw_character(x, z, radius, color, is_target)
 	end
 end
 
-function draw_target(level_pos_x, level_pos_z, level_target_x, level_target_z, color)
-	local screen_pos_x, screen_pos_y = level_to_screen(level_pos_x, level_pos_z)
-	local screen_target_x, screen_target_y = level_to_screen(level_target_x, level_target_z)	
-
-	gui.drawLine(screen_pos_x, screen_pos_y, screen_target_x, screen_target_y, color)
+function draw_line(_start, _end, _color)
+	local x1, y1 = level_to_screen(_start.x, _start.z)
+	local x2, y2 = level_to_screen(_end.x, _end.z)
+	
+	gui.drawLine(x1, y1, x2, y2, _color)
 end
 
-function get_position_of_slot(_slot)
-	local position_data_pointer = (read_guard_data_value(_slot, "position_data_pointer") - 0x80000000)
+function get_distance(_p1, _p2)
+	local diff_x = (_p1.x - _p2.x)
+	local diff_y = (_p1.y - _p2.y)
+	local diff_z = (_p1.z - _p2.z)
 	
-	local position_x = read_position_data_value(position_data_pointer, "position_x")
-	local position_z = read_position_data_value(position_data_pointer, "position_z")
-	
-	return position_x, position_z
+	return math.sqrt((diff_x * diff_x) + (diff_y * diff_y) + (diff_z * diff_z))
 end
-	
-local id_to_prev_loaded_state = {}
 
-function draw_guard(slot)	
-	local id = read_guard_data_value(slot, "id")
-	
-	if (id == 0xFF) then
-		return
+local id_to_loaded_status = {}
+
+function check_loaded_status(_id, _position, _segment_info)	
+	if not id_to_loaded_status[_id] then
+		id_to_loaded_status[_id] = 
+		{
+			["is_loaded"] = true,
+			["position"] = _position,
+			["segment_info"] = _segment_info
+		}
 	end
 	
-	local guard_x, guard_z = get_position_of_slot(slot)
+	local loaded_status = id_to_loaded_status[_id]	
+
+	if ((_segment_info.coverage ~= loaded_status.segment_info.coverage) or
+		(_segment_info.length ~= loaded_status.segment_info.length)) then
+		if ((_segment_info.coverage >= 0.0) and 
+			(_segment_info.coverage <= _segment_info.length)) then
+			local diff = (_segment_info.coverage - loaded_status.segment_info.coverage)
+			
+			if ((_segment_info.coverage == 0.0) or 
+				((diff >= 0.0) and (diff <= 20.0))) then
+				loaded_status.is_loaded = false
+			end
+		end
+		
+		loaded_status.segment_info = _segment_info
+	end	
 	
-	local radius = read_guard_data_value(slot, "collision_radius_1")
+	if ((_position.x ~= loaded_status.position.x) or
+		(_position.y ~= loaded_status.position.y) or 
+		(_position.z ~= loaded_status.position.z)) then		
+		local distance = get_distance(_position, loaded_status.position)
+		
+		if (distance <= 20.0) then
+			loaded_status.is_loaded = true
+		end
+		
+		loaded_status.position = _position		
+	end	
 	
-	local target_x = read_guard_data_value(slot, "target_position_x")
-	local target_z = read_guard_data_value(slot, "target_position_z")
-	
-	local current_action = read_guard_data_value(slot, "current_action")	
-	
+	return loaded_status.is_loaded
+end
+
+function draw_guard(_slot)
 	local guard_action_colors = 
 	{
 		[0x4] = colors.guard_dying,
@@ -276,62 +302,53 @@ function draw_guard(slot)
 		[0x14] = colors.guard_throwing_grenade
 	}
 	
-	local guard_action_color = guard_action_colors[current_action]
+	local guard_data_reader = GuardDataReader.create(_slot)
 	
-	if not guard_action_color then
-		guard_action_color = colors.guard_default
-	end
+	local id = guard_data_reader:get_value("id")
 	
-	local guard_color = colors.loaded_alpha + guard_action_color
-	
-	local is_loaded = true
-	local distance_travelled = nil
-	
-	if current_action == 0xF or current_action == 0xE then	
-		draw_target(guard_x, guard_z, target_x, target_z, colors.guard_default + colors.unloaded_alpha)		
-		
-		local segment_length = nil
-		
-		if current_action == 0xE then
-			distance_travelled = read_guard_data_value(slot, "distance_travelled_path")
-			segment_length = read_guard_data_value(slot, "segment_length_path")
-		else
-			distance_travelled = read_guard_data_value(slot, "distance_travelled")
-			segment_length = read_guard_data_value(slot, "segment_length")
-		end		
-	
-		local prev_loaded_state = id_to_prev_loaded_state[id]
-		
-		if prev_loaded_state ~= nil then
-			if ((prev_loaded_state.prev_dist_trav == distance_travelled) and
-				(prev_loaded_state.prev_loaded_x == guard_x)) then
-				is_loaded = prev_loaded_state.was_loaded
-			elseif (prev_loaded_state.prev_dist_trav ~= distance_travelled) and
-				(not prev_loaded_state.prev_dist_trav or (((distance_travelled - prev_loaded_state.prev_dist_trav) > 0.0) and ((distance_travelled - prev_loaded_state.prev_dist_trav) < 25.0) or
-				math.abs(distance_travelled) < 0.5)) then
-				is_loaded = false
-			end
-		end
-		
-		if not is_loaded then
-			local dir_x = (target_x - guard_x) / segment_length
-			local dir_z = (target_z - guard_z) / segment_length
-		
-			guard_x = guard_x + (dir_x * distance_travelled)
-			guard_z = guard_z + (dir_z * distance_travelled)	
-
-			guard_color = colors.unloaded_alpha + guard_action_color			
-		end
+	if (id == 0xFF) then
+		return
 	end	
 	
-	draw_character(guard_x, guard_z, radius, guard_color, (id == target.id))
+	local is_loaded = true	
+	local is_target = (id == target.id)	
 	
-	id_to_prev_loaded_state[id] = 
-	{
-		["was_loaded"] = is_loaded, 
-		["prev_dist_trav"] = distance_travelled, 
-		["prev_loaded_x"] = guard_loaded_x
-	}
+	local current_action = guard_data_reader:get_value("current_action")
+	local collision_radius = guard_data_reader:get_value("collision_radius")
+	
+	local position = guard_data_reader:get_position()	
+	
+	local color = (guard_action_colors[current_action] or colors.guard_default)
+	
+	-- Is the guard moving?
+	if ((current_action == 0xF) or (current_action == 0xE)) then
+		local is_path = (current_action == 0xE)
+		
+		local segment_info = guard_data_reader:get_segment_info(is_path)		
+		local target_position = guard_data_reader:get_target_position(is_path)
+		
+		draw_line(position, target_position, (color + colors.unloaded_alpha))
+		
+		is_loaded = check_loaded_status(id, position, segment_info)
+		
+		if not is_loaded then
+			local dir_x = ((target_position.x - position.x) / segment_info.length)
+			local dir_z = ((target_position.z - position.z) / segment_info.length)
+			
+			local unloaded_position_x = (position.x + (dir_x * segment_info.coverage))
+			local unloaded_position_z = (position.z + (dir_z * segment_info.coverage))
+			
+			draw_character(unloaded_position_x, unloaded_position_z, collision_radius, (color + colors.unloaded_alpha), false)
+		end
+	end
+	
+	if is_loaded then
+		color = (color + colors.loaded_alpha)
+	else
+		color = (color + colors.unloaded_alpha)
+	end	
+	
+	draw_character(position.x, position.z, collision_radius, color, is_target)
 end
 
 function draw_guards()
@@ -358,10 +375,14 @@ function get_position_of_id(_id)
 		z = read_player_data_value("position_z")
 	else
 		for slot = 1, 38, 1 do	
-			local id = read_guard_data_value(slot, "id")
+			local guard_data_reader = GuardDataReader.create(slot)		
+			local id = guard_data_reader:get_value("id")
 			
 			if (id == _id) then
-				x, z = get_position_of_slot(slot)
+				local position = guard_data_reader:get_position()
+				
+				x = position.x
+				z = position.z
 			end			
 		end
 	end
@@ -372,8 +393,10 @@ end
 function find_nearest_target(x, y)
 	local ids = {0xFF}
 	
-	for slot = 1, 38, 1 do		
-		table.insert(ids, read_guard_data_value(slot, "id"))
+	for slot = 1, 38, 1 do
+		local guard_data_reader = GuardDataReader.create(slot)	
+		
+		table.insert(ids, guard_data_reader:get_value("id"))
 	end
 	
 	local ids_and_distances = {}
