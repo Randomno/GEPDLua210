@@ -435,6 +435,11 @@ function on_mouse_drag(diff_x, diff_y)
 	 if (camera.mode == 1) then
 		 camera.pos_x = (camera.pos_x - pixels_to_units(diff_x))
 		 camera.pos_z = (camera.pos_z - pixels_to_units(diff_y))
+		 
+		 camera.pos_x = math.max(camera.pos_x, (level.bounds.min_x / level.scale))
+		 camera.pos_x = math.min(camera.pos_x, (level.bounds.max_x / level.scale))
+		 camera.pos_z = math.max(camera.pos_z, (level.bounds.min_z / level.scale))
+		 camera.pos_z = math.min(camera.pos_z, (level.bounds.max_z / level.scale))
 	 end
 end
 
