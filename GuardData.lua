@@ -56,13 +56,21 @@ for index, value in ipairs(guard_data) do
 	guard_data_by_name[value.name] = value
 end
 
-function get_base_address(_slot)
-	local guard_data_start = (mainmemory.read_u32_be(guard_data_pointer) - 0x80000000)
+function get_base_address(_slot)	
+	local guard_data_start = mainmemory.read_u32_be(guard_data_pointer)
+	
+	if (guard_data_start == 0x00000000) then
+		return nil
+	end
 
-	return guard_data_start + (_slot - 1) * guard_data_size
+	return ((guard_data_start - 0x80000000) + ((_slot - 1) * guard_data_size))
 end
 
 function read_guard_data_value(_base_address, _name)
+	if not _base_address then
+		return nil
+	end
+
 	local metadata = guard_data_by_name[_name]
 
 	if metadata.size == 1 then

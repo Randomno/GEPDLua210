@@ -2,6 +2,7 @@ player_data_pointer = 0x079EE0
 player_data =
 {
 	{["offset"] = 0x070, ["size"] = 0x4, ["type"] = "float", 	["name"] = "target_height"},
+	{["offset"] = 0x0A0, ["size"] = 0x4, ["type"] = "float", 	["name"] = "ducking_height"},
 	{["offset"] = 0x0DC, ["size"] = 0x4, ["type"] = "float", 	["name"] = "current_health"},
 	{["offset"] = 0x0E4, ["size"] = 0x4, ["type"] = "float", 	["name"] = "previous_health"},
 	{["offset"] = 0x0F4, ["size"] = 0x4, ["type"] = "unsigned", ["name"] = "invincibility_frame_counter"},	

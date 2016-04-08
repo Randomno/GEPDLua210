@@ -25,7 +25,11 @@ local guard_data_enums =
 	}
 }
 
-function format_guard_data_value(value, metadata)	
+function format_guard_data_value(value, metadata)
+	if not value then
+		return string.format("%s: N/A", metadata.name)
+	end
+
 	if metadata.type == "hex" then
 		return string.format("%s: 0x%X", metadata.name, value)
 	elseif metadata.type == "unsigned" then
@@ -47,12 +51,14 @@ end
 
 function write_guard_data(_slot)
 	local base_address = get_base_address(_slot)
-	local guard_data_string = string.format("base_address: 0x%X\n\n", base_address)
+	local base_address_string = (base_address and string.format("0x%X", base_address) or "N/A")	
+	local guard_data_string = string.format("base_address: %s\n\n", base_address_string)
 	
 	for index, metadata in ipairs(guard_data) do
-		local guard_data_value = read_guard_data_value(base_address, metadata.name)	
+		local guard_data_value = read_guard_data_value(base_address, metadata.name)
+		
 		guard_data_string = guard_data_string .. format_guard_data_value(guard_data_value, metadata) .. "\n"
-	end	
+	end		
 	
 	forms.settext(guard_data_output_text, guard_data_string)
 end
