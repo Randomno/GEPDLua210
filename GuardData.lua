@@ -1,7 +1,9 @@
-guard_data_pointer = 0x02CC64
-guard_data_capacity_pointer = 0x02CC68
-guard_data_size = 0x1DC
-guard_data =
+GuardData = {}
+
+GuardData.start_address_pointer = 0x02CC64
+GuardData.capacity_pointer = 0x2CC68
+GuardData.slot_size = 0x1DC
+GuardData.metadata =
 {
 	{["offset"] = 0x001, ["size"] = 0x1, ["type"] = "hex", 		["name"] = "id"},
 	{["offset"] = 0x004, ["size"] = 0x1, ["type"] = "unsigned", ["name"] = "rounds_fired_left"},
@@ -50,50 +52,58 @@ guard_data =
 	{["offset"] = 0x114, ["size"] = 0x2, ["type"] = "hex", 		["name"] = "2328_preset"}
 }
 
-local guard_data_by_name = {}
+local metadata_by_name = {}
 
-for index, value in ipairs(guard_data) do
-	guard_data_by_name[value.name] = value
+for index, value in ipairs(GuardData.metadata) do
+	metadata_by_name[value.name] = value
 end
 
-function get_capacity()
-	return mainmemory.read_u32_be(guard_data_capacity_pointer)
+function GuardData.get_capacity()
+	return mainmemory.read_u32_be(GuardData.capacity_pointer)
 end
 
-function get_base_address(_slot)
-	local guard_data_start = mainmemory.read_u32_be(guard_data_pointer)
+function GuardData.get_slot_address(_slot)
+	_slot = (_slot or 1)
 	
-	if (guard_data_start == 0x00000000) then
+	if (_slot > GuardData.get_capacity()) then
 		return nil
 	end
 
-	return ((guard_data_start - 0x80000000) + ((_slot - 1) * guard_data_size))
-end
-
-function is_empty(_base_address)
-	local metadata = guard_data_by_name["model_data_pointer"]
-
-	return (mainmemory.read_u8(_base_address + metadata.offset) == 0x00)
-end
-
-function read_guard_data_value(_base_address, _name)
-	if not _base_address then
+	local start_address = mainmemory.read_u32_be(GuardData.start_address_pointer)
+	
+	if (start_address == 0x00000000) then
 		return nil
 	end
+	
+	start_address = (start_address - 0x80000000)
 
-	local metadata = guard_data_by_name[_name]
+	return (start_address + ((_slot - 1) * GuardData.slot_size))
+end
+
+function GuardData.get_metadata(_name)
+	return metadata_by_name[_name]
+end
+
+function GuardData.get_value(_slot_address, _name)
+	local metadata = GuardData.get_metadata(_name)
 
 	if metadata.size == 1 then
-		return mainmemory.read_u8(_base_address + metadata.offset)
+		return mainmemory.read_u8(_slot_address + metadata.offset)
 	elseif metadata.size == 2 then
-		return mainmemory.read_u16_be(_base_address + metadata.offset)
+		return mainmemory.read_u16_be(_slot_address + metadata.offset)
 	elseif metadata.size == 4 then
 		if metadata.type == "float" then
-			return mainmemory.readfloat(_base_address + metadata.offset, true)
+			return mainmemory.readfloat(_slot_address + metadata.offset, true)
 		else
-			return mainmemory.read_u32_be(_base_address + metadata.offset)
+			return mainmemory.read_u32_be(_slot_address + metadata.offset)
 		end
 	else
-		error("invalid guard value size")
+		error("Invalid value size")
 	end	
+end
+
+function GuardData.is_empty(_slot_address)
+	local metadata = GuardData.get_metadata("model_data_pointer")
+
+	return (mainmemory.read_u8(_slot_address + metadata.offset) == 0x00)
 end

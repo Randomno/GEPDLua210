@@ -1,6 +1,6 @@
 require "GuardData"
 
-local guard_data_enums = 
+local guard_data_mnemonics = 
 {
 	["current_action"] = 
 	{
@@ -25,7 +25,7 @@ local guard_data_enums =
 	}
 }
 
-function format_guard_data_value(value, metadata)
+function format_value(value, metadata)
 	if not value then
 		return string.format("%s: N/A", metadata.name)
 	end
@@ -37,7 +37,7 @@ function format_guard_data_value(value, metadata)
 	elseif metadata.type == "float" then
 		return string.format("%s: %.4f", metadata.name, value)
 	elseif metadata.type == "enum" then
-		local mnemonic = guard_data_enums[metadata.name][value]
+		local mnemonic = guard_data_mnemonics[metadata.name][value]
 		
 		if mnemonic == nil then
 			mnemonic = string.format("unknown (0x%X)", value)
@@ -49,34 +49,38 @@ function format_guard_data_value(value, metadata)
 	end
 end
 
-function write_guard_data(_slot)
-	local base_address = get_base_address(_slot)
-	local base_address_string = (base_address and string.format("0x%X", base_address) or "N/A")	
-	local guard_data_string = string.format("base_address: %s\n\n", base_address_string)
+function on_update_text(_slot)
+	local slot_address = GuardData.get_slot_address(_slot)
+	local slot_address_metadata = {["name"] = "slot_address", ["type"] = "hex"}
+	local slot_address_string = format_value(slot_address, slot_address_metadata)
 	
-	local is_empty = not base_address or is_empty(base_address)
+	local is_empty = not slot_address or GuardData.is_empty(slot_address)
 	
-	for index, metadata in ipairs(guard_data) do
-		local guard_data_value = nil
+	local guard_data_string = slot_address_string .. "\n\n"
+	
+	for index, metadata in ipairs(GuardData.metadata) do
+		local value = nil
 		
 		if not is_empty then
-			guard_data_value = read_guard_data_value(base_address, metadata.name)
+			value = GuardData.get_value(slot_address, metadata.name)
 		end
-
-		guard_data_string = (guard_data_string .. format_guard_data_value(guard_data_value, metadata) .. "\n")
-	end
 		
+		local value_string = format_value(value, metadata)
+		
+		guard_data_string = (guard_data_string .. value_string .. "\n")
+	end
+	
 	if is_empty then
 		guard_data_string = (guard_data_string .. "\n(empty)")
 	end
-	
+
 	forms.settext(guard_data_output_text, guard_data_string)
 end
 
 local current_slot = 1
 
 function on_update_slot()
-	local capacity = get_capacity()
+	local capacity = GuardData.get_capacity()
 	
 	current_slot = math.max(current_slot, 1)
 	current_slot = math.min(current_slot, capacity)
@@ -87,9 +91,8 @@ function on_update_slot()
 end
 
 function on_update()
-	on_update_slot()
-	
-	write_guard_data(current_slot)
+	on_update_slot()	
+	on_update_text(current_slot)
 end
 
 function on_prev_slot()
@@ -99,7 +102,7 @@ function on_prev_slot()
 end
 
 function on_next_slot()
-	current_slot = math.min((current_slot + 1), get_capacity())
+	current_slot = math.min((current_slot + 1), GuardData.get_capacity())
 	
 	on_update()
 end

@@ -371,7 +371,7 @@ function get_unloaded_alpha(_is_active)
 	return (_is_active and colors.guard_unloaded_alpha or colors.guard_inactive_unloaded_alpha)
 end
 
-function draw_guard(_slot)
+function draw_guard(_guard_data_reader)
 	local guard_action_colors = 
 	{
 		[0x4] = colors.guard_dying,
@@ -383,22 +383,20 @@ function draw_guard(_slot)
 		[0x14] = colors.guard_throwing_grenade
 	}
 	
-	local guard_data_reader = GuardDataReader.create(_slot)
-	
-	local id = guard_data_reader:get_value("id")
+	local id = _guard_data_reader:get_value("id")
 	
 	if (id == 0xFF) then
 		return
 	end	
 	
-	local position = guard_data_reader:get_position()	
+	local position = _guard_data_reader:get_position()	
 	
 	local is_loaded = true	
 	local is_target = (id == target.id)	
 	local is_active = is_active_floor(position.y)
 	
-	local current_action = guard_data_reader:get_value("current_action")
-	local collision_radius = guard_data_reader:get_value("collision_radius")
+	local current_action = _guard_data_reader:get_value("current_action")
+	local collision_radius = _guard_data_reader:get_value("collision_radius")
 	
 	local action_color = (guard_action_colors[current_action] or colors.guard_default)	
 	local loaded_color = (action_color + get_default_alpha(is_active))
@@ -409,8 +407,8 @@ function draw_guard(_slot)
 	if ((current_action == 0xF) or (current_action == 0xE)) then
 		local is_path = (current_action == 0xE)
 		
-		local segment_info = guard_data_reader:get_segment_info(is_path)		
-		local target_position = guard_data_reader:get_target_position(is_path)
+		local segment_info = _guard_data_reader:get_segment_info(is_path)		
+		local target_position = _guard_data_reader:get_target_position(is_path)
 		
 		local unloaded_color = (action_color + get_unloaded_alpha(is_active))
 		
@@ -431,13 +429,15 @@ function draw_guard(_slot)
 		end
 	end
 	
-	draw_character(position.x, position.z, collision_radius, loaded_color, is_target, is_active)
+	draw_character(position.x, position.z, collision_radius, color, is_target, is_active)
 end
 
 function draw_guards()
-	for slot = 1, 38, 1 do
-		draw_guard(slot)
-	end
+	local guard_data_reader = GuardDataReader.create()
+
+	repeat
+		draw_guard(guard_data_reader)
+	until not guard_data_reader:next_non_empty_slot()
 end
 
 function draw_bond()
@@ -462,27 +462,28 @@ function get_position_of_id(_id)
 		
 		return {["x"] = x, ["y"] = y, ["z"] = z}
 	else
-		for slot = 1, 38, 1 do
-			local guard_data_reader = GuardDataReader.create(slot)		
+		local guard_data_reader = GuardDataReader.create()
+		
+		repeat
 			local id = guard_data_reader:get_value("id")
 			
-			if (id == _id) then			
+			if (id == _id) then
 				return guard_data_reader:get_position()
 			end
-		end			
+		until not guard_data_reader:next_non_empty_slot()
 	end
 	
 	return nil
 end
 
 function find_nearest_target(x, y)
-	local ids = {0xFF}
+	local ids = {0xFF}	
 	
-	for slot = 1, 38, 1 do
-		local guard_data_reader = GuardDataReader.create(slot)
-		
+	local guard_data_reader = GuardDataReader.create()
+	
+	repeat
 		table.insert(ids, guard_data_reader:get_value("id"))
-	end
+	until not guard_data_reader:next_non_empty_slot()
 	
 	local ids_and_distances = {}
 	
@@ -674,7 +675,7 @@ function on_update()
 		return
 	end		
 	
-	if not get_base_address(1) then
+	if not GuardData.get_slot_address() then
 		return
 	end
 	
