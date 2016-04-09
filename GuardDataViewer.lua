@@ -54,38 +54,53 @@ function write_guard_data(_slot)
 	local base_address_string = (base_address and string.format("0x%X", base_address) or "N/A")	
 	local guard_data_string = string.format("base_address: %s\n\n", base_address_string)
 	
+	local is_empty = not base_address or is_empty(base_address)
+	
 	for index, metadata in ipairs(guard_data) do
-		local guard_data_value = read_guard_data_value(base_address, metadata.name)
+		local guard_data_value = nil
 		
-		guard_data_string = guard_data_string .. format_guard_data_value(guard_data_value, metadata) .. "\n"
-	end		
+		if not is_empty then
+			guard_data_value = read_guard_data_value(base_address, metadata.name)
+		end
+
+		guard_data_string = (guard_data_string .. format_guard_data_value(guard_data_value, metadata) .. "\n")
+	end
+		
+	if is_empty then
+		guard_data_string = (guard_data_string .. "\n(empty)")
+	end
 	
 	forms.settext(guard_data_output_text, guard_data_string)
 end
 
 local current_slot = 1
 
-function on_update()
-	write_guard_data(current_slot)
-end
-
-function on_slot_changed()
-	local slot_string = string.format("Slot %d / %d", current_slot, guard_data_slots)
+function on_update_slot()
+	local capacity = get_capacity()
+	
+	current_slot = math.max(current_slot, 1)
+	current_slot = math.min(current_slot, capacity)
+	
+	local slot_string = string.format("Slot %d / %d", current_slot, capacity)
 	
 	forms.settext(guard_data_slot_text, slot_string)
+end
+
+function on_update()
+	on_update_slot()
+	
+	write_guard_data(current_slot)
 end
 
 function on_prev_slot()
 	current_slot = math.max((current_slot - 1), 1)
 	
-	on_slot_changed()
 	on_update()
 end
 
 function on_next_slot()
-	current_slot = math.min((current_slot + 1), guard_data_slots)
+	current_slot = math.min((current_slot + 1), get_capacity())
 	
-	on_slot_changed()
 	on_update()
 end
 
@@ -115,7 +130,6 @@ guard_data_next_slot_button = forms.button(guard_data_dialog, "Next slot", on_ne
 guard_data_output_text = forms.label(guard_data_dialog, "", guard_data_output_text_pos_x, guard_data_output_text_pos_y, guard_data_output_text_size_x, guard_data_output_text_size_y, true)
 guard_data_slot_text = forms.label(guard_data_dialog, "", guard_data_slot_text_pos_x, guard_data_slot_text_pos_y)
 
-on_slot_changed()
 on_update()
 
 event.onframeend(on_update)

@@ -1,6 +1,6 @@
 guard_data_pointer = 0x02CC64
+guard_data_capacity_pointer = 0x02CC68
 guard_data_size = 0x1DC
-guard_data_slots = 50
 guard_data =
 {
 	{["offset"] = 0x001, ["size"] = 0x1, ["type"] = "hex", 		["name"] = "id"},
@@ -56,7 +56,11 @@ for index, value in ipairs(guard_data) do
 	guard_data_by_name[value.name] = value
 end
 
-function get_base_address(_slot)	
+function get_capacity()
+	return mainmemory.read_u32_be(guard_data_capacity_pointer)
+end
+
+function get_base_address(_slot)
 	local guard_data_start = mainmemory.read_u32_be(guard_data_pointer)
 	
 	if (guard_data_start == 0x00000000) then
@@ -64,6 +68,12 @@ function get_base_address(_slot)
 	end
 
 	return ((guard_data_start - 0x80000000) + ((_slot - 1) * guard_data_size))
+end
+
+function is_empty(_base_address)
+	local metadata = guard_data_by_name["model_data_pointer"]
+
+	return (mainmemory.read_u8(_base_address + metadata.offset) == 0x00)
 end
 
 function read_guard_data_value(_base_address, _name)

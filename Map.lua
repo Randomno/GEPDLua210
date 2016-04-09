@@ -19,7 +19,7 @@ map.min_x = map.center_x - (map.width / 2)
 map.min_y = map.center_y - (map.height / 2)
 map.max_x = (map.min_x + map.width)
 map.max_y = (map.min_y + map.height)
-map.units_per_pixel = (10000.0 / map.width)
+map.units_per_pixel = (10000.0 / map.width) -- Make this constant?
 
 local camera = {}
 
