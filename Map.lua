@@ -106,7 +106,8 @@ function parse_floors(_scale)
 	local start_number = io.read("*n")
 	
 	for height in string.gmatch(io.read("*l"), "%S+") do	
-		table.insert(floors, {["height"] = (tonumber(height) / _scale)})
+		-- Offset the floors by 1 unit to ensure characters end up above the floor
+		table.insert(floors, {["height"] = ((tonumber(height) / _scale) - 1.0)})
 	end
 	
 	table.sort(floors, (function(a, b) return (a.height < b.height) end))
@@ -389,11 +390,12 @@ function draw_guard(_guard_data_reader)
 		return
 	end	
 	
-	local position = _guard_data_reader:get_position()	
+	local position = _guard_data_reader:get_position()
+	local clipping_height = _guard_data_reader:get_value("clipping_height")
 	
 	local is_loaded = true	
 	local is_target = (id == target.id)	
-	local is_active = is_active_floor(position.y)
+	local is_active = is_active_floor(clipping_height)
 	
 	local current_action = _guard_data_reader:get_value("current_action")
 	local collision_radius = _guard_data_reader:get_value("collision_radius")
@@ -441,24 +443,24 @@ function draw_guards()
 end
 
 function draw_bond()
-	local bond_x = read_player_data_value("position_x")
-	local bond_y = read_player_data_value("position_y")
-	local bond_z = read_player_data_value("position_z")
-	local bond_radius = read_player_data_value("collision_radius")
+	local x = PlayerData.get_value("position_x")
+	local z = PlayerData.get_value("position_z")
+	local radius = PlayerData.get_value("collision_radius")
+	local clipping_height = PlayerData.get_value("clipping_height")
 	
 	local is_target = (target.id == 0xFF)
-	local is_active = is_active_floor(bond_y)
+	local is_active = is_active_floor(clipping_height)
 	
-	local bond_color = (colors.bond_default + get_default_alpha(is_active))
+	local color = (colors.bond_default + get_default_alpha(is_active))
 	
-	draw_character(bond_x, bond_z, bond_radius, bond_color, is_target, is_active)
+	draw_character(x, z, radius, color, is_target, is_active)
 end
 
 function get_position_of_id(_id)
 	if (_id == 0xFF) then
-		local x = read_player_data_value("position_x")
-		local y = read_player_data_value("position_y")
-		local z = read_player_data_value("position_z")
+		local x = PlayerData.get_value("position_x")
+		local y = PlayerData.get_value("position_y")
+		local z = PlayerData.get_value("position_z")
 		
 		return {["x"] = x, ["y"] = y, ["z"] = z}
 	else
@@ -469,6 +471,24 @@ function get_position_of_id(_id)
 			
 			if (id == _id) then
 				return guard_data_reader:get_position()
+			end
+		until not guard_data_reader:next_non_empty_slot()
+	end
+	
+	return nil
+end
+
+function get_clipping_height_of_id(_id)
+	if (_id == 0xFF) then
+		return PlayerData.get_value("clipping_height")		
+	else
+		local guard_data_reader = GuardDataReader.create()
+	
+		repeat
+			local id = guard_data_reader:get_value("id")
+			
+			if (id == _id) then
+				return guard_data_reader:get_value("clipping_height")
 			end
 		until not guard_data_reader:next_non_empty_slot()
 	end
@@ -629,11 +649,12 @@ function on_update_camera()
 	if (camera.mode == 2) then
 		if target.id then
 			local target_position = get_position_of_id(target.id)
+			local target_clipping_height = get_clipping_height_of_id(target.id)
 			
-			if target_position then
+			if target_position and target_clipping_height then
 				camera.pos_x = target_position.x
 				camera.pos_z = target_position.z
-				camera.floor = get_floor(target_position.y)
+				camera.floor = get_floor(target_clipping_height)
 			end
 		end	
 	end

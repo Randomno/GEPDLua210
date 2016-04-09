@@ -1,8 +1,10 @@
-player_data_pointer = 0x079EE0
-player_data =
+PlayerData = {}
+
+PlayerData.address = 0x079EE0
+PlayerData.metadata = 
 {
-	{["offset"] = 0x070, ["size"] = 0x4, ["type"] = "float", 	["name"] = "target_height"},
-	{["offset"] = 0x0A0, ["size"] = 0x4, ["type"] = "float", 	["name"] = "ducking_height"},
+	{["offset"] = 0x074, ["size"] = 0x4, ["type"] = "float", 	["name"] = "clipping_height"},
+	{["offset"] = 0x0A0, ["size"] = 0x4, ["type"] = "float", 	["name"] = "ducking_height_offset"},
 	{["offset"] = 0x0DC, ["size"] = 0x4, ["type"] = "float", 	["name"] = "current_health"},
 	{["offset"] = 0x0E4, ["size"] = 0x4, ["type"] = "float", 	["name"] = "previous_health"},
 	{["offset"] = 0x0F4, ["size"] = 0x4, ["type"] = "unsigned", ["name"] = "invincibility_frame_counter"},	
@@ -36,33 +38,35 @@ player_data =
 	{["offset"] = 0x490, ["size"] = 0x4, ["type"] = "float", 	["name"] = "position_y"},
 	{["offset"] = 0x494, ["size"] = 0x4, ["type"] = "float", 	["name"] = "position_z"},
 	{["offset"] = 0x4B0, ["size"] = 0x4, ["type"] = "float", 	["name"] = "collision_radius"},
+	{["offset"] = 0x500, ["size"] = 0x4, ["type"] = "float",	["name"] = "ground_offset"},
 	{["offset"] = 0x520, ["size"] = 0x4, ["type"] = "float", 	["name"] = "speed_x"},
 	{["offset"] = 0x524, ["size"] = 0x4, ["type"] = "float", 	["name"] = "speed_y"},
 	{["offset"] = 0x528, ["size"] = 0x4, ["type"] = "float", 	["name"] = "speed_z"},
+	{["offset"] = 0x550, ["size"] = 0x4, ["type"] = "float",	["name"] = "stationary_ground_offset"},
 	{["offset"] = 0xA80, ["size"] = 0x4, ["type"] = "float", 	["name"] = "noise"}
 }
 
-local player_data_by_name = {}
+local metadata_by_name = {}
 
-for index, value in ipairs(player_data) do
-	player_data_by_name[value.name] = value
+for index, metadata in ipairs(PlayerData.metadata) do
+	metadata_by_name[metadata.name] = metadata
 end
 
-function read_player_data_value(_name)
-	local player_data_base = (mainmemory.read_u32_be(player_data_pointer) - 0x80000000)
-	local metadata = player_data_by_name[_name]
+function PlayerData.get_value(_name)
+	local player_data_address = (mainmemory.read_u32_be(PlayerData.address) - 0x80000000)
+	local metadata = metadata_by_name[_name]	
 	
 	if (metadata.size == 1) then
-		return mainmemory.read_u8(player_data_base + metadata.offset)
+		return mainmemory.read_u8(player_data_address + metadata.offset)
 	elseif (metadata.size == 2) then
-		return mainmemory.read_u16_be(player_data_base + metadata.offset)
+		return mainmemory.read_u16_be(player_data_address + metadata.offset)
 	elseif (metadata.size == 4) then
 		if (metadata.type == "float") then
-			return mainmemory.readfloat(player_data_base + metadata.offset, true)
+			return mainmemory.readfloat(player_data_address + metadata.offset, true)
 		else
-			return mainmemory.read_u32_be(player_data_base + metadata.offset)
+			return mainmemory.read_u32_be(player_data_address + metadata.offset)
 		end
 	else
-		error("invalid player data value size")
+		error("Invalid value size")
 	end	
 end

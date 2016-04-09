@@ -53,11 +53,11 @@ function GuardDataReader:get_value(_name)
 end
 
 function GuardDataReader:get_position()
-	local position_data_pointer = (self:get_value("position_data_pointer") - 0x80000000)
+	local position_data_address = (self:get_value("position_data_pointer") - 0x80000000)
 	
-	local position_x = read_position_data_value(position_data_pointer, "position_x")
-	local position_y = read_position_data_value(position_data_pointer, "position_y")
-	local position_z = read_position_data_value(position_data_pointer, "position_z")
+	local position_x = PositionData.get_value(position_data_address, "position_x")
+	local position_y = PositionData.get_value(position_data_address, "position_y")
+	local position_z = PositionData.get_value(position_data_address, "position_z")
 	
 	return {["x"] = position_x, ["y"] = position_y, ["z"] = position_z}
 end

@@ -1,7 +1,7 @@
 GuardData = {}
 
 GuardData.start_address_pointer = 0x02CC64
-GuardData.capacity_pointer = 0x2CC68
+GuardData.capacity_address = 0x2CC68
 GuardData.slot_size = 0x1DC
 GuardData.metadata =
 {
@@ -34,6 +34,7 @@ GuardData.metadata =
 	--{["offset"] = 0x090, ["size"] = 0x4, ["type"] = "float", 	["name"] = "target_position_z_copy"},	
 	{["offset"] = 0x094, ["size"] = 0x4, ["type"] = "float", 	["name"] = "segment_coverage"},
 	{["offset"] = 0x098, ["size"] = 0x4, ["type"] = "float", 	["name"] = "segment_length"},
+	{["offset"] = 0x0AC, ["size"] = 0x4, ["type"] = "float", 	["name"] = "clipping_height"},
 	{["offset"] = 0x0BC, ["size"] = 0x4, ["type"] = "float", 	["name"] = "position_x"},
 	{["offset"] = 0x0C0, ["size"] = 0x4, ["type"] = "float", 	["name"] = "position_y"},
 	{["offset"] = 0x0C4, ["size"] = 0x4, ["type"] = "float", 	["name"] = "position_z"},
@@ -54,12 +55,12 @@ GuardData.metadata =
 
 local metadata_by_name = {}
 
-for index, value in ipairs(GuardData.metadata) do
-	metadata_by_name[value.name] = value
+for index, metadata in ipairs(GuardData.metadata) do
+	metadata_by_name[metadata.name] = metadata
 end
 
 function GuardData.get_capacity()
-	return mainmemory.read_u32_be(GuardData.capacity_pointer)
+	return mainmemory.read_u32_be(GuardData.capacity_address)
 end
 
 function GuardData.get_slot_address(_slot)
