@@ -145,6 +145,10 @@ end
 function parse_map_file(filename)
 	local file = io.open(filename, "r")
 	
+	if not file then
+		error(string.format("Failed to open file: %s", filename))
+	end
+	
 	io.input(file)
 	
 	local output = {}
@@ -187,10 +191,11 @@ end
 local level_data = {}
 
 function load_level_data()
+	level_data["Dam"] = parse_map_file("Maps/Dam.map")
 	level_data["Facility"] = parse_map_file("Maps/Facility.map")
-	--level_data["Bunker 2"] = parse_map_file("Maps/Bunker 2.map")
-	--level_data["Streets"] = parse_map_file("Maps/Streets.map")
-	--level_data["Aztec"] = parse_map_file("Maps/Aztec.map")
+	level_data["Runway"] = parse_map_file("Maps/Runway.map")
+	level_data["Surface 1"] = parse_map_file("Maps/Surface 1.map")
+	level_data["Bunker 1"] = parse_map_file("Maps/Bunker 1.map")
 end
 
 local level = {}
