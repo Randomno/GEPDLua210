@@ -27,7 +27,7 @@ camera.modes = {"Manual", "Follow"}
 camera.mode = 2
 camera.position = {["x"] = 0.0, ["z"] = 0.0}
 camera.floor = 0
-camera.zoom = 3.0
+camera.zoom = 4.0
 camera.zoom_min = 1.0
 camera.zoom_max = 10.0
 camera.zoom_step = 0.5
@@ -312,14 +312,19 @@ function draw_map()
 	
 		edge.x1, edge.y1 = level_to_screen(object.x1, object.z1)
 		edge.x2, edge.y2 = level_to_screen(object.x2, object.z2)
-
-		local clipped_edge = clip_line(edge, map)
 		
-		if clipped_edge then		
+		if (((edge.x1 < map.min_x) or (edge.x1 > map.max_x)) or
+			((edge.y1 < map.min_y) or (edge.y1 > map.max_y)) or
+			((edge.x2 < map.min_x) or (edge.x2 > map.max_x)) or
+			((edge.y2 < map.min_y) or (edge.y2 > map.max_y))) then
+			edge = clip_line(edge, map)
+		end
+		
+		if edge then		
 			local is_active = (is_active_floor(object.y1) or is_active_floor(object.y2))
 			local map_color = (colors.map_default + get_map_alpha(is_active))
 			
-			gui.drawLine(clipped_edge.x1, clipped_edge.y1, clipped_edge.x2, clipped_edge.y2, map_color)
+			gui.drawLine(edge.x1, edge.y1, edge.x2, edge.y2, map_color)
 		end
 	end
 end
