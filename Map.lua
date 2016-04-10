@@ -705,9 +705,11 @@ function on_update_camera()
 		end	
 	end
 	
-	gui.drawText(10, (screen.height - 20), "Camera mode: " .. camera.modes[camera.mode])
-	gui.drawText(430, (screen.height - 20), string.format("X: %d Z: %d", camera.position.x, camera.position.z))
-	gui.drawText((screen.width - 85), (screen.height - 20), "Zoom: " .. camera.zoom .. "x")
+	local output_y = (screen.height - 19)
+	
+	gui.drawText(10, output_y, "Mode: " .. camera.modes[camera.mode])
+	gui.drawText(394, output_y, string.format("X: %d Z: %d", camera.position.x, camera.position.z))
+	gui.drawText((screen.width - 85), output_y, "Zoom: " .. camera.zoom .. "x")
 	
 	local floor_suffixes = {"%dst", "%dnd", "%drd", "%dth"}		
 	
@@ -716,7 +718,7 @@ function on_update_camera()
 	local floor_suffix = floor_suffixes[math.min(math.mod(floor_number, 10), 4)]
 	local floor_string = string.format(floor_suffix .. " " .. floor_type, floor_number)
 	
-	gui.drawText(340, (screen.height - 20), floor_string)
+	gui.drawText(284, output_y, floor_string)
 	
 	local target_id_string = "None"
 	
@@ -728,7 +730,7 @@ function on_update_camera()
 		end
 	end
 	
-	gui.drawText(175, (screen.height - 20), "Target: " .. target_id_string)
+	gui.drawText(120, output_y, "Target: " .. target_id_string)
 end
 
 local previous_mission = 0xFF
