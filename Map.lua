@@ -19,14 +19,13 @@ map.min_x = map.center_x - (map.width / 2)
 map.min_y = map.center_y - (map.height / 2)
 map.max_x = (map.min_x + map.width)
 map.max_y = (map.min_y + map.height)
-map.units_per_pixel = (10000.0 / map.width) -- Make this constant?
+map.units_per_pixel = 20.0
 
 local camera = {}
 
 camera.modes = {"Manual", "Follow"}
 camera.mode = 2
-camera.pos_x = 0.0
-camera.pos_z = 0.0
+camera.position = {["x"] = 0.0, ["z"] = 0.0}
 camera.floor = 0
 camera.zoom = 3.0
 camera.zoom_min = 1.0
@@ -210,17 +209,17 @@ function load_level(name)
 	init_quadtree(level.bounds, level.edges)
 end
 
-function units_to_pixels(units)
-	return ((units * camera.zoom) / map.units_per_pixel)
+function units_to_pixels(_units)
+	return ((_units * camera.zoom) / map.units_per_pixel)
 end
 
-function pixels_to_units(pixels)
-	return ((pixels * map.units_per_pixel) / camera.zoom)
+function pixels_to_units(_pixels)
+	return ((_pixels * map.units_per_pixel) / camera.zoom)
 end
 
-function level_to_screen(x, z)
-	local diff_x = units_to_pixels(x - camera.pos_x)
-	local diff_z = units_to_pixels(z - camera.pos_z)
+function level_to_screen(_x, _z)
+	local diff_x = units_to_pixels(_x - camera.position.x)
+	local diff_z = units_to_pixels(_z - camera.position.z)
 	
 	local screen_x = (map.center_x + diff_x)
 	local screen_y = (map.center_y + diff_z)
@@ -228,12 +227,12 @@ function level_to_screen(x, z)
 	return screen_x, screen_y
 end
 
-function screen_to_level(x, y)	
-	local diff_x = (x - map.center_x)
-	local diff_y = (y - map.center_y)
+function screen_to_level(_x, _y)	
+	local diff_x = (_x - map.center_x)
+	local diff_y = (_y - map.center_y)
 	
-	local level_x = pixels_to_units(diff_x) + camera.pos_x
-	local level_z = pixels_to_units(diff_y) + camera.pos_z
+	local level_x = (pixels_to_units(diff_x) + camera.position.x)
+	local level_z = (pixels_to_units(diff_y) + camera.position.z)
 	
 	return level_x, level_z
 end
@@ -252,6 +251,49 @@ function is_active_floor(_height)
 	return (get_floor(_height) == camera.floor)
 end
 
+-- Liang-Barsky algorithm
+function clip_line(_line, _bounds)
+	local diff_x = (_line.x2 - _line.x1)
+	local diff_y = (_line.y2 - _line.y1)
+	
+	local p = {-diff_x, diff_x, -diff_y, diff_y}
+	local q = {(_line.x1 - _bounds.min_x), -(_line.x1 - _bounds.max_x), (_line.y1 - _bounds.min_y), -(_line.y1 - _bounds.max_y)}
+	
+	local t0 = 0.0
+	local t1 = 1.0
+	
+	for i = 1, 4, 1 do
+		if ((p[i] == 0.0) and (q[i] < 0.0)) then
+			return nil
+		end
+		
+		local r = (q[i] / p[i])
+		
+		if (p[i] < 0.0) then
+			if (r > t1) then
+				return nil
+			elseif (r > t0) then
+				t0 = r
+			end
+		elseif (p[i] > 0.0) then
+			if (r < t0) then
+				return nil
+			elseif (r < t1) then
+				t1 = r
+			end
+		end
+	end
+	
+	local clipped_line = {}
+	
+	clipped_line.x1 = (_line.x1 + (t0 * diff_x))
+	clipped_line.y1 = (_line.y1 + (t0 * diff_y))
+	clipped_line.x2 = (_line.x1 + (t1 * diff_x))
+	clipped_line.y2 = (_line.y1 + (t1 * diff_y))
+	
+	return clipped_line
+end
+
 function get_map_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.map_inactive_alpha)
 end
@@ -266,26 +308,18 @@ function draw_map()
 	quadtree:findcollisions(bounds, collisions)
 	
 	for key, object in pairs(collisions) do
-		local screen_x1, screen_y1 = level_to_screen(object.x1, object.z1)
-		local screen_x2, screen_y2 = level_to_screen(object.x2, object.z2)
+		local edge = {}
 	
-		if (((screen_x1 > map.min_x) and (screen_x1 < map.max_x)) and
-			((screen_y1 > map.min_y) and (screen_y1 < map.max_y))) or
-			(((screen_x2 > map.min_x) and (screen_x2 < map.max_x)) and
-			((screen_y2 > map.min_y) and (screen_y2 < map.max_y))) then
-			screen_x1 = math.max(screen_x1, map.min_x)
-			screen_x1 = math.min(screen_x1, map.max_x)
-			screen_y1 = math.max(screen_y1, map.min_y)
-			screen_y1 = math.min(screen_y1, map.max_y)
-			screen_x2 = math.max(screen_x2, map.min_x)
-			screen_x2 = math.min(screen_x2, map.max_x)
-			screen_y2 = math.max(screen_y2, map.min_y)
-			screen_y2 = math.min(screen_y2, map.max_y)
-			
+		edge.x1, edge.y1 = level_to_screen(object.x1, object.z1)
+		edge.x2, edge.y2 = level_to_screen(object.x2, object.z2)
+
+		local clipped_edge = clip_line(edge, map)
+		
+		if clipped_edge then		
 			local is_active = (is_active_floor(object.y1) or is_active_floor(object.y2))
 			local map_color = (colors.map_default + get_map_alpha(is_active))
 			
-			gui.drawLine(screen_x1, screen_y1, screen_x2, screen_y2, map_color)	
+			gui.drawLine(clipped_edge.x1, clipped_edge.y1, clipped_edge.x2, clipped_edge.y2, map_color)
 		end
 	end
 end
@@ -299,10 +333,10 @@ function draw_character(x, z, radius, color, is_target, is_active)
 	local screen_radius = units_to_pixels(radius)
 	local screen_diameter = (screen_radius * 2)
 		
-	if (((screen_x + screen_radius) > map.min_x) and
-		((screen_y + screen_radius) > map.min_y) and
-		((screen_x - screen_radius) < map.max_x) and
-		((screen_y - screen_radius) < map.max_y)) then	
+	if (((screen_x - screen_radius) > map.min_x) and
+		((screen_y - screen_radius) > map.min_y) and
+		((screen_x + screen_radius) < map.max_x) and
+		((screen_y + screen_radius) < map.max_y)) then	
 		gui.drawEllipse((screen_x - screen_radius), (screen_y - screen_radius), screen_diameter, screen_diameter, color, color)	
 		
 		if (is_target) then
@@ -316,10 +350,16 @@ function draw_character(x, z, radius, color, is_target, is_active)
 end
 
 function draw_line(_start, _end, _color)
-	local x1, y1 = level_to_screen(_start.x, _start.z)
-	local x2, y2 = level_to_screen(_end.x, _end.z)
+	local line = {}
+
+	line.x1, line.y1 = level_to_screen(_start.x, _start.z)
+	line.x2, line.y2 = level_to_screen(_end.x, _end.z)
 	
-	gui.drawLine(x1, y1, x2, y2, _color)
+	local clipped_line = clip_line(line, map)
+	
+	if clipped_line then
+		gui.drawLine(clipped_line.x1, clipped_line.y1, clipped_line.x2, clipped_line.y2, _color)	
+	end	
 end
 
 function get_distance(_p1, _p2)
@@ -545,13 +585,13 @@ end
 
 function on_mouse_drag(diff_x, diff_y)	
 	 if (camera.mode == 1) then
-		 camera.pos_x = (camera.pos_x - pixels_to_units(diff_x))
-		 camera.pos_z = (camera.pos_z - pixels_to_units(diff_y))
+		 camera.position.x = (camera.position.x - pixels_to_units(diff_x))
+		 camera.position.z = (camera.position.z - pixels_to_units(diff_y))
 		 
-		 camera.pos_x = math.max(camera.pos_x, level.bounds.min_x)
-		 camera.pos_x = math.min(camera.pos_x, level.bounds.max_x)
-		 camera.pos_z = math.max(camera.pos_z, level.bounds.min_z)
-		 camera.pos_z = math.min(camera.pos_z, level.bounds.max_z)
+		 camera.position.x = math.max(camera.position.x, level.bounds.min_x)
+		 camera.position.x = math.min(camera.position.x, level.bounds.max_x)
+		 camera.position.z = math.max(camera.position.z, level.bounds.min_z)
+		 camera.position.z = math.min(camera.position.z, level.bounds.max_z)
 	 end
 end
 
@@ -657,15 +697,16 @@ function on_update_camera()
 			local target_clipping_height = get_clipping_height_of_id(target.id)
 			
 			if target_position and target_clipping_height then
-				camera.pos_x = target_position.x
-				camera.pos_z = target_position.z
+				camera.position.x = target_position.x
+				camera.position.z = target_position.z
+				
 				camera.floor = get_floor(target_clipping_height)
 			end
 		end	
 	end
 	
 	gui.drawText(10, (screen.height - 20), "Camera mode: " .. camera.modes[camera.mode])
-	gui.drawText(430, (screen.height - 20), string.format("X: %d Z: %d", camera.pos_x, camera.pos_z))
+	gui.drawText(430, (screen.height - 20), string.format("X: %d Z: %d", camera.position.x, camera.position.z))
 	gui.drawText((screen.width - 85), (screen.height - 20), "Zoom: " .. camera.zoom .. "x")
 	
 	local floor_suffixes = {"%dst", "%dnd", "%drd", "%dth"}		
