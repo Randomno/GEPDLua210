@@ -30,7 +30,7 @@ function QuadTree:split()
 	}
 end
 
-function QuadTree:getquadrants(_object)
+function QuadTree:get_quadrants(_object)
 	local quadrants = nil
 	
 	local center_x = (self.x + math.floor(self.width / 2))
@@ -72,7 +72,7 @@ end
 
 function QuadTree:insert(_object)
 	if self.children then
-		local quadrants = self:getquadrants(_object)
+		local quadrants = self:get_quadrants(_object)
 		
 		for index, quadrant in ipairs(quadrants) do
 			self.children[quadrant]:insert(_object)	
@@ -92,7 +92,7 @@ function QuadTree:insert(_object)
 		
 		while index <= #self.objects do
 			local object = self.objects[index]
-			local quadrants = self:getquadrants(object)
+			local quadrants = self:get_quadrants(object)
 			
 			for index, quadrant in ipairs(quadrants) do
 				self.children[quadrant]:insert(object)	
@@ -109,12 +109,12 @@ function QuadTree:getobjects(_objects)
 	end
 end
 
-function QuadTree:findcollisions(_object, _collisions)
+function QuadTree:find_collisions(_object, _collisions)
 	if self.children then
-		local quadrants = self:getquadrants(_object)
+		local quadrants = self:get_quadrants(_object)
 		
 		for index, quadrant in ipairs(quadrants) do
-			self.children[quadrant]:findcollisions(_object, _collisions)
+			self.children[quadrant]:find_collisions(_object, _collisions)
 		end	
 	end
 	

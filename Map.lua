@@ -302,10 +302,10 @@ function draw_map()
 	local bounds = {}
 	local collisions = {}
 	
-	bounds.x1, bounds.z1 = screen_to_level(0, 0)
-	bounds.x2, bounds.z2 = screen_to_level(screen.width, screen.height)
+	bounds.x1, bounds.z1 = screen_to_level(map.min_x, map.min_y)
+	bounds.x2, bounds.z2 = screen_to_level(map.max_x, map.max_y)
 	
-	quadtree:findcollisions(bounds, collisions)
+	quadtree:find_collisions(bounds, collisions)
 	
 	for key, object in pairs(collisions) do
 		local edge = {}
