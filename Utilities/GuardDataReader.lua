@@ -54,12 +54,13 @@ end
 
 function GuardDataReader:get_position()
 	local position_data_address = (self:get_value("position_data_pointer") - 0x80000000)
+	local position = {}
 	
-	local position_x = PositionData.get_value(position_data_address, "position_x")
-	local position_y = PositionData.get_value(position_data_address, "position_y")
-	local position_z = PositionData.get_value(position_data_address, "position_z")
+	position.x = PositionData.get_value(position_data_address, "position_x")
+	position.y = PositionData.get_value(position_data_address, "position_y")
+	position.z = PositionData.get_value(position_data_address, "position_z")
 	
-	return {["x"] = position_x, ["y"] = position_y, ["z"] = position_z}
+	return position
 end
 
 local get_path_prefix = function(_is_path)
@@ -78,10 +79,21 @@ end
 
 function GuardDataReader:get_target_position(_is_path)
 	local path_prefix = get_path_prefix(_is_path)
+	local target_position = {}
 
-	local target_position_x = self:get_value(path_prefix .. "target_position_x")
-	local target_position_y = self:get_value(path_prefix .. "target_position_y")
-	local target_position_z = self:get_value(path_prefix .. "target_position_z")
+	target_position.x = self:get_value(path_prefix .. "target_position_x")
+	target_position.y = self:get_value(path_prefix .. "target_position_y")
+	target_position.z = self:get_value(path_prefix .. "target_position_z")
 	
-	return {["x"] = target_position_x, ["y"] = target_position_y, ["z"] = target_position_z}
+	return target_position
+end
+
+function GuardDataReader:get_bond_position()
+	local bond_position = {}
+
+	bond_position.x = self:get_value("bond_x")
+	bond_position.y = self:get_value("bond_y")
+	bond_position.z = self:get_value("bond_z")
+	
+	return bond_position
 end
