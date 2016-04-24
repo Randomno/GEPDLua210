@@ -42,6 +42,10 @@ target.id = 0xFF
 target.scale = 3.0
 target.pick_radius = 5.0
 
+local view_cone = {}
+
+view_cone.scale = 4.0
+
 function make_color(r, g, b, a)
 	local a_hex = bit.band(math.floor((a * 255) + 0.5), 0xFF)
 	local r_hex = bit.band(math.floor((r * 255) + 0.5), 0xFF)
@@ -79,6 +83,10 @@ colors.guard_inactive_unloaded_alpha = make_alpha(0.1)
 
 colors.map_default = make_rgb(1.0, 1.0, 1.0)
 colors.map_inactive_alpha = make_alpha(0.1)
+
+colors.view_cone_default = make_rgb(1.0, 1.0, 1.0)
+colors.view_cone_default_alpha = make_alpha(0.2)
+colors.view_cone_inactive_alpha = make_alpha(0.1)
 
 colors.target_default = make_rgb(1.0, 0.0, 0.0)
 colors.target_inactive_alpha = make_alpha(0.3)
@@ -330,11 +338,15 @@ function draw_map()
 	end
 end
 
+function get_view_cone_alpha(_is_active)
+	return (_is_active and colors.view_cone_default_alpha or colors.view_cone_inactive_alpha)
+end
+
 function get_target_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.target_inactive_alpha)
 end
 
-function draw_character(x, z, radius, color, is_target, is_active)	
+function draw_character(x, z, radius, angle, color, is_target, is_active)	
 	local screen_x, screen_y = level_to_screen(x, z)
 	local screen_radius = units_to_pixels(radius)
 	local screen_diameter = (screen_radius * 2)
@@ -345,7 +357,15 @@ function draw_character(x, z, radius, color, is_target, is_active)
 		((screen_y + screen_radius) < map.max_y)) then	
 		gui.drawEllipse((screen_x - screen_radius), (screen_y - screen_radius), screen_diameter, screen_diameter, color, color)	
 		
-		if (is_target) then
+		if angle then
+			local view_cone_radius = (screen_radius * view_cone.scale)
+			local view_cone_diameter = (view_cone_radius * 2)
+			local view_cone_color = (colors.view_cone_default + get_view_cone_alpha(is_active))
+			
+			gui.drawPie((screen_x - view_cone_radius), (screen_y - view_cone_radius), view_cone_diameter, view_cone_diameter, (angle - 45), 90, view_cone_color, view_cone_color)
+		end
+		
+		if is_target then
 			local target_radius = (screen_radius * target.scale)
 			local target_diameter = (target_radius * 2)
 			local target_color = (colors.target_default + get_target_alpha(is_active))
@@ -476,13 +496,13 @@ function draw_guard(_guard_data_reader)
 			local unloaded_position_x = (position.x + (dir_x * segment_info.coverage))
 			local unloaded_position_z = (position.z + (dir_z * segment_info.coverage))
 			
-			draw_character(unloaded_position_x, unloaded_position_z, collision_radius, unloaded_color, false)
+			draw_character(unloaded_position_x, unloaded_position_z, collision_radius, nil, unloaded_color, false, false)
 			
 			color = unloaded_color
 		end
 	end
 	
-	draw_character(position.x, position.z, collision_radius, color, is_target, is_active)
+	draw_character(position.x, position.z, collision_radius, nil, color, is_target, is_active)
 end
 
 function draw_guards()
@@ -496,6 +516,7 @@ end
 function draw_bond()
 	local x = PlayerData.get_value("position_x")
 	local z = PlayerData.get_value("position_z")
+	local angle = PlayerData.get_value("azimuth_angle") + 90
 	local radius = PlayerData.get_value("collision_radius")
 	local clipping_height = PlayerData.get_value("clipping_height")
 	
@@ -504,7 +525,7 @@ function draw_bond()
 	
 	local color = (colors.bond_default + get_default_alpha(is_active))
 	
-	draw_character(x, z, radius, color, is_target, is_active)
+	draw_character(x, z, radius, angle, color, is_target, is_active)
 end
 
 function get_position_of_id(_id)
