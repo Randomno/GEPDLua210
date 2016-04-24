@@ -346,23 +346,27 @@ function get_target_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.target_inactive_alpha)
 end
 
-function draw_character(x, z, radius, angle, color, is_target, is_active)	
-	local screen_x, screen_y = level_to_screen(x, z)
-	local screen_radius = units_to_pixels(radius)
+function draw_character(_x, _z, _radius, _clipping_height, _view_angle, _id, _color, _alpha_function)
+	local screen_x, screen_y = level_to_screen(_x, _z)
+	local screen_radius = units_to_pixels(_radius)
 	local screen_diameter = (screen_radius * 2)
 		
 	if (((screen_x - screen_radius) > map.min_x) and
 		((screen_y - screen_radius) > map.min_y) and
 		((screen_x + screen_radius) < map.max_x) and
 		((screen_y + screen_radius) < map.max_y)) then	
+		local is_target = (target.id == _id)
+		local is_active = is_active_floor(_clipping_height)			
+		local color = (_color + _alpha_function(is_active))
+		
 		gui.drawEllipse((screen_x - screen_radius), (screen_y - screen_radius), screen_diameter, screen_diameter, color, color)	
 		
-		if angle then
+		if _view_angle then
 			local view_cone_radius = (screen_radius * view_cone.scale)
 			local view_cone_diameter = (view_cone_radius * 2)
 			local view_cone_color = (colors.view_cone_default + get_view_cone_alpha(is_active))
 			
-			gui.drawPie((screen_x - view_cone_radius), (screen_y - view_cone_radius), view_cone_diameter, view_cone_diameter, (angle - 45), 90, view_cone_color, view_cone_color)
+			gui.drawPie((screen_x - view_cone_radius), (screen_y - view_cone_radius), view_cone_diameter, view_cone_diameter, (_view_angle - 45), 90, view_cone_color, view_cone_color)
 		end
 		
 		if is_target then
@@ -375,7 +379,7 @@ function draw_character(x, z, radius, angle, color, is_target, is_active)
 	end
 end
 
-function draw_line(_start, _end, _color)
+function draw_line(_start, _end, _clipping_height, _color, _alpha_function)
 	local line = {}
 
 	line.x1, line.y1 = level_to_screen(_start.x, _start.z)
@@ -384,7 +388,10 @@ function draw_line(_start, _end, _color)
 	local clipped_line = clip_line(line, map)
 	
 	if clipped_line then
-		gui.drawLine(clipped_line.x1, clipped_line.y1, clipped_line.x2, clipped_line.y2, _color)	
+		local is_active = is_active_floor(_clipping_height)
+		local color = (_color + _alpha_function(is_active))
+	
+		gui.drawLine(clipped_line.x1, clipped_line.y1, clipped_line.x2, clipped_line.y2, color)	
 	end	
 end
 
@@ -462,19 +469,12 @@ function draw_guard(_guard_data_reader)
 	end	
 	
 	local position = _guard_data_reader:get_position()
-	local clipping_height = _guard_data_reader:get_value("clipping_height")
-	
-	local is_loaded = true	
-	local is_target = (id == target.id)	
-	local is_active = is_active_floor(clipping_height)
-	
 	local current_action = _guard_data_reader:get_value("current_action")
 	local collision_radius = _guard_data_reader:get_value("collision_radius")
+	local clipping_height = _guard_data_reader:get_value("clipping_height")		
+	local color = (guard_action_colors[current_action] or colors.guard_default)
 	
-	local action_color = (guard_action_colors[current_action] or colors.guard_default)	
-	local loaded_color = (action_color + get_default_alpha(is_active))
-	
-	local color = loaded_color
+	local is_loaded = true
 	
 	-- Is the guard moving?
 	if ((current_action == 0xF) or (current_action == 0xE)) then
@@ -483,9 +483,7 @@ function draw_guard(_guard_data_reader)
 		local segment_info = _guard_data_reader:get_segment_info(is_path)		
 		local target_position = _guard_data_reader:get_target_position(is_path)
 		
-		local unloaded_color = (action_color + get_unloaded_alpha(is_active))
-		
-		draw_line(position, target_position, unloaded_color)
+		draw_line(position, target_position, clipping_height, color, get_unloaded_alpha)
 		
 		is_loaded = check_loaded_state(id, position, segment_info)
 		
@@ -496,13 +494,13 @@ function draw_guard(_guard_data_reader)
 			local unloaded_position_x = (position.x + (dir_x * segment_info.coverage))
 			local unloaded_position_z = (position.z + (dir_z * segment_info.coverage))
 			
-			draw_character(unloaded_position_x, unloaded_position_z, collision_radius, nil, unloaded_color, false, false)
-			
-			color = unloaded_color
+			draw_character(unloaded_position_x, unloaded_position_z, collision_radius, clipping_height, nil, id, color, get_unloaded_alpha)
 		end
 	end
 	
-	draw_character(position.x, position.z, collision_radius, nil, color, is_target, is_active)
+	local alpha_function = (is_loaded and get_default_alpha or get_unloaded_alpha)
+	
+	draw_character(position.x, position.z, collision_radius, clipping_height, nil, id, color, alpha_function)
 end
 
 function draw_guards()
@@ -516,16 +514,11 @@ end
 function draw_bond()
 	local x = PlayerData.get_value("position_x")
 	local z = PlayerData.get_value("position_z")
-	local angle = PlayerData.get_value("azimuth_angle") + 90
 	local radius = PlayerData.get_value("collision_radius")
 	local clipping_height = PlayerData.get_value("clipping_height")
+	local view_angle = (PlayerData.get_value("azimuth_angle") + 90)
 	
-	local is_target = (target.id == 0xFF)
-	local is_active = is_active_floor(clipping_height)
-	
-	local color = (colors.bond_default + get_default_alpha(is_active))
-	
-	draw_character(x, z, radius, angle, color, is_target, is_active)
+	draw_character(x, z, radius, clipping_height, view_angle, 0xFF, colors.bond_default, get_default_alpha)
 end
 
 function get_position_of_id(_id)
