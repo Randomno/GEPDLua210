@@ -3,6 +3,7 @@ require "PlayerData"
 require "PositionData"
 require "Utilities\\QuadTree"
 require "Utilities\\GuardDataReader"
+require "Utilities\\ObjectDataReader"
 
 local screen = {}
 
@@ -46,11 +47,11 @@ local view_cone = {}
 
 view_cone.scale = 4.0
 
-function make_color(r, g, b, a)
-	local a_hex = bit.band(math.floor((a * 255) + 0.5), 0xFF)
-	local r_hex = bit.band(math.floor((r * 255) + 0.5), 0xFF)
-	local g_hex = bit.band(math.floor((g * 255) + 0.5), 0xFF)
-	local b_hex = bit.band(math.floor((b * 255) + 0.5), 0xFF)
+function make_color(_r, _g, _b, _a)
+	local a_hex = bit.band(math.floor((_a * 255) + 0.5), 0xFF)
+	local r_hex = bit.band(math.floor((_r * 255) + 0.5), 0xFF)
+	local g_hex = bit.band(math.floor((_g * 255) + 0.5), 0xFF)
+	local b_hex = bit.band(math.floor((_b * 255) + 0.5), 0xFF)
 	
 	a_hex = bit.lshift(a_hex, (8 * 3))
 	r_hex = bit.lshift(r_hex, (8 * 2))
@@ -60,12 +61,12 @@ function make_color(r, g, b, a)
 	return (a_hex + r_hex + g_hex + b_hex)
 end
 
-function make_rgb(r, g, b)
-	return make_color(r, g, b, 0.0)
+function make_rgb(_r, _g, _b)
+	return make_color(_r, _g, _b, 0.0)
 end
 
-function make_alpha(a)
-	return make_color(0.0, 0.0, 0.0, a)
+function make_alpha(_a)
+	return make_color(0.0, 0.0, 0.0, _a)
 end
 
 local colors = {}
@@ -83,6 +84,9 @@ colors.guard_inactive_unloaded_alpha = make_alpha(0.1)
 
 colors.map_default = make_rgb(1.0, 1.0, 1.0)
 colors.map_inactive_alpha = make_alpha(0.1)
+
+colors.object_default = make_rgb(1.0, 1.0, 1.0)
+colors.object_inactive_alpha = make_alpha(0.2)
 
 colors.view_cone_default = make_rgb(1.0, 1.0, 1.0)
 colors.view_cone_default_alpha = make_alpha(0.2)
@@ -149,11 +153,11 @@ function parse_edges(_scale)
 	return edges
 end
 
-function parse_map_file(filename)
-	local file = io.open(filename, "r")
+function parse_map_file(_filename)
+	local file = io.open(_filename, "r")
 	
 	if not file then
-		error(string.format("Failed to open file: %s", filename))
+		error("Failed to open file: " .. _filename)
 	end
 	
 	io.input(file)
@@ -303,6 +307,27 @@ function clip_line(_line, _bounds)
 	return clipped_line
 end
 
+function draw_line(_start, _end, _height, _color, _alpha_function)
+	local line = {}
+
+	line.x1, line.y1 = level_to_screen(_start.x, _start.z)
+	line.x2, line.y2 = level_to_screen(_end.x, _end.z)
+	
+	if (((line.x1 < map.min_x) or (line.x1 > map.max_x)) or
+		((line.y1 < map.min_y) or (line.y1 > map.max_y)) or
+		((line.x2 < map.min_x) or (line.x2 > map.max_x)) or
+		((line.y2 < map.min_y) or (line.y2 > map.max_y))) then
+		line = clip_line(line, map)
+	end
+	
+	if line then
+		local is_active = is_active_floor(_height)
+		local color = (_color + _alpha_function(is_active))
+	
+		gui.drawLine(line.x1, line.y1, line.x2, line.y2, color)	
+	end	
+end
+
 function get_map_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.map_inactive_alpha)
 end
@@ -317,24 +342,46 @@ function draw_map()
 	quadtree:find_collisions(bounds, collisions)
 	
 	for key, object in pairs(collisions) do
-		local edge = {}
+		local edge_start = {["x"] = object.x1, ["z"] = object.z1}
+		local edge_end = {["x"] = object.x2, ["z"] = object.z2}
+		
+		draw_line(edge_start, edge_end, object.y1, colors.map_default, get_map_alpha)
+	end
+end
+
+function get_object_alpha(_is_active)
+	return (_is_active and colors.default_alpha or colors.object_inactive_alpha)
+end
+
+function draw_object(_object_data_reader)	
+	local points, y_min, y_max = _object_data_reader:get_collision_data()
 	
-		edge.x1, edge.y1 = level_to_screen(object.x1, object.z1)
-		edge.x2, edge.y2 = level_to_screen(object.x2, object.z2)
-		
-		if (((edge.x1 < map.min_x) or (edge.x1 > map.max_x)) or
-			((edge.y1 < map.min_y) or (edge.y1 > map.max_y)) or
-			((edge.x2 < map.min_x) or (edge.x2 > map.max_x)) or
-			((edge.y2 < map.min_y) or (edge.y2 > map.max_y))) then
-			edge = clip_line(edge, map)
-		end
-		
-		if edge then		
-			local is_active = (is_active_floor(object.y1) or is_active_floor(object.y2))
-			local map_color = (colors.map_default + get_map_alpha(is_active))
+	for i = 1, #points, 1 do
+		local j = ((i % #points) + 1)
+
+		draw_line(points[i], points[j], y_min, colors.object_default, get_object_alpha)						
+	end	
+end
+
+function draw_objects()
+	local bounds = {}
+	
+	bounds.min_x, bounds.min_z = screen_to_level(map.min_x, map.min_y)
+	bounds.max_x, bounds.max_z = screen_to_level(map.max_x, map.max_y)
+	
+	local object_data_reader = ObjectDataReader.create()	
 			
-			gui.drawLine(edge.x1, edge.y1, edge.x2, edge.y2, map_color)
-		end
+	while not object_data_reader:reached_end() do		
+		if object_data_reader:check_flag("force_collisions") then	
+			local position = object_data_reader:get_value("position")
+			
+			if (((position[1] + 500.0) > bounds.min_x) and ((position[1] - 500.0) < bounds.max_x) and
+				((position[3] + 500.0) > bounds.min_z) and ((position[3] - 500.0) < bounds.max_z)) then
+				draw_object(object_data_reader)
+			end
+		end	
+		
+		object_data_reader:next_object()
 	end
 end
 
@@ -355,7 +402,7 @@ function draw_character(_x, _z, _radius, _clipping_height, _view_angle, _id, _co
 		((screen_y - screen_radius) > map.min_y) and
 		((screen_x + screen_radius) < map.max_x) and
 		((screen_y + screen_radius) < map.max_y)) then	
-		local is_target = (target.id == _id)
+		local is_target = (target.id and (target.id == _id) or false)
 		local is_active = is_active_floor(_clipping_height)			
 		local color = (_color + _alpha_function(is_active))
 		
@@ -377,22 +424,6 @@ function draw_character(_x, _z, _radius, _clipping_height, _view_angle, _id, _co
 			gui.drawEllipse((screen_x - target_radius), (screen_y - target_radius), target_diameter, target_diameter, target_color)
 		end
 	end
-end
-
-function draw_line(_start, _end, _clipping_height, _color, _alpha_function)
-	local line = {}
-
-	line.x1, line.y1 = level_to_screen(_start.x, _start.z)
-	line.x2, line.y2 = level_to_screen(_end.x, _end.z)
-	
-	local clipped_line = clip_line(line, map)
-	
-	if clipped_line then
-		local is_active = is_active_floor(_clipping_height)
-		local color = (_color + _alpha_function(is_active))
-	
-		gui.drawLine(clipped_line.x1, clipped_line.y1, clipped_line.x2, clipped_line.y2, color)	
-	end	
 end
 
 function get_distance(_p1, _p2)
@@ -494,7 +525,7 @@ function draw_guard(_guard_data_reader)
 			local unloaded_position_x = (position.x + (dir_x * segment_info.coverage))
 			local unloaded_position_z = (position.z + (dir_z * segment_info.coverage))
 			
-			draw_character(unloaded_position_x, unloaded_position_z, collision_radius, clipping_height, nil, id, color, get_unloaded_alpha)
+			draw_character(unloaded_position_x, unloaded_position_z, collision_radius, clipping_height, nil, nil, color, get_unloaded_alpha)
 		end
 	end
 	
@@ -778,9 +809,10 @@ function on_update()
 
 	on_update_mouse()
 	on_update_keyboard()
-	on_update_camera()
+	on_update_camera()	
 	
 	draw_map()
+	draw_objects()
 	draw_guards()
 	draw_bond()
 end
