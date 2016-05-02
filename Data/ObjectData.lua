@@ -6,19 +6,19 @@ DoorData.type = 0x01
 DoorData.size = 0x80
 DoorData.metadata =
 {
-	{["offset"] = 0x004, ["size"] = 0x4, ["type"] = "float", 	["name"] = "max_displacement_percentage"},
-	{["offset"] = 0x008, ["size"] = 0x4, ["type"] = "float", 	["name"] = "walkthrough_distance"},
-	{["offset"] = 0x00C, ["size"] = 0x4, ["type"] = "float", 	["name"] = "acceleration"},
-	{["offset"] = 0x010, ["size"] = 0x4, ["type"] = "float", 	["name"] = "rate"},
-	{["offset"] = 0x014, ["size"] = 0x4, ["type"] = "float", 	["name"] = "max_speed"},
-	{["offset"] = 0x01C, ["size"] = 0x4, ["type"] = "bitfield", ["name"] = "lock"},
-	{["offset"] = 0x020, ["size"] = 0x4, ["type"] = "unsigned", ["name"] = "max_open_time"},
-	{["offset"] = 0x028, ["size"] = 0x4, ["type"] = "float", 	["name"] = "max_displacement"},
-	{["offset"] = 0x034, ["size"] = 0x4, ["type"] = "float", 	["name"] = "displacement_percentage"},
-	{["offset"] = 0x038, ["size"] = 0x4, ["type"] = "float", 	["name"] = "speed_percentage"},
-	{["offset"] = 0x03C, ["size"] = 0x4, ["type"] = "enum", 	["name"] = "state"},
-	{["offset"] = 0x06C, ["size"] = 0x4, ["type"] = "unsigned", ["name"] = "opened_time"},
-	{["offset"] = 0x07C, ["size"] = 0x4, ["type"] = "unsigned", ["name"] = "timer"}
+	{["offset"] = 0x04, ["size"] = 0x4, ["type"] = "float", 	["name"] = "max_displacement_percentage"},
+	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "float", 	["name"] = "walkthrough_distance"},
+	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "float", 	["name"] = "acceleration"},
+	{["offset"] = 0x10, ["size"] = 0x4, ["type"] = "float", 	["name"] = "rate"},
+	{["offset"] = 0x14, ["size"] = 0x4, ["type"] = "float", 	["name"] = "max_speed"},
+	{["offset"] = 0x1C, ["size"] = 0x4, ["type"] = "bitfield", 	["name"] = "lock"},
+	{["offset"] = 0x20, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "max_open_time"},
+	{["offset"] = 0x28, ["size"] = 0x4, ["type"] = "float", 	["name"] = "max_displacement"},
+	{["offset"] = 0x34, ["size"] = 0x4, ["type"] = "float", 	["name"] = "displacement_percentage"},
+	{["offset"] = 0x38, ["size"] = 0x4, ["type"] = "float", 	["name"] = "speed_percentage"},
+	{["offset"] = 0x3C, ["size"] = 0x1, ["type"] = "enum", 		["name"] = "state"},
+	{["offset"] = 0x6C, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "opened_time"},
+	{["offset"] = 0x7C, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "timer"}
 }
 
 local DoorThicknessData = Data.create()
@@ -43,7 +43,8 @@ PhysicalObjectData.metadata =
 	{["offset"] = 0x18, ["size"] = 0x40, ["type"] = "matrix", 	["name"] = "transform"},
 	{["offset"] = 0x58, ["size"] = 0x10, ["type"] = "vector4",	["name"] = "position"},
 	{["offset"] = 0x68, ["size"] = 0x04, ["type"] = "hex",		["name"] = "collision_data_pointer"},
-	{["offset"] = 0x74, ["size"] = 0x02, ["type"] = "hex",		["name"] = "health"},
+	{["offset"] = 0x70, ["size"] = 0x04, ["type"] = "float",	["name"] = "damage_received"},
+	{["offset"] = 0x74, ["size"] = 0x04, ["type"] = "float",	["name"] = "health"},
 	{["offset"] = 0x78, ["size"] = 0x04, ["type"] = "color",	["name"] = "current_color"},
 	{["offset"] = 0x7C, ["size"] = 0x04, ["type"] = "color",	["name"] = "target_color"}
 }

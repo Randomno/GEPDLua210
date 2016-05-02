@@ -189,7 +189,7 @@ function parse_map_file(_filename)
 	return output
 end
 
-local quadtree = {}
+local quadtree = nil
 
 function init_quadtree(_bounds, _edges)
 	quadtree = QuadTree.create(_bounds.min_x, _bounds.min_z, _bounds.width, _bounds.height, 1)
@@ -207,14 +207,15 @@ function load_level_data()
 	level_data["Runway"] = parse_map_file("Maps/Runway.map")
 	level_data["Surface 1"] = parse_map_file("Maps/Surface 1.map")
 	level_data["Bunker 1"] = parse_map_file("Maps/Bunker 1.map")
+	level_data["Silo"] = parse_map_file("Maps/Silo.map")
 	level_data["Bunker 2"] = parse_map_file("Maps/Bunker 2.map")
 end
 
 local level = {}
 
-function load_level(name)
-	--local scale, bounds, edges = parse_map_file("Maps/" .. name .. ".map")
-	level = level_data[name]
+function load_level(_name)
+	--local scale, bounds, edges = parse_map_file("Maps/" .. _name .. ".map")
+	level = level_data[_name]
 	
 	level.bounds.width = (level.bounds.max_x - level.bounds.min_x)
 	level.bounds.height = (level.bounds.max_z - level.bounds.min_z)
