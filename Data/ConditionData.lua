@@ -2,6 +2,7 @@ require "Data\\Data"
 
 local DestroyObjectData = Data.create()
 
+DestroyObjectData.type = 0x19
 DestroyObjectData.size = 0x08
 DestroyObjectData.metadata = 
 {
@@ -9,6 +10,7 @@ DestroyObjectData.metadata =
 
 local TruifyFlagsData = Data.create()
 
+TruifyFlagsData.type = 0x1A
 TruifyFlagsData.size = 0x08
 TruifyFlagsData.metadata = 
 {
@@ -16,6 +18,7 @@ TruifyFlagsData.metadata =
 
 local FalsifyFlagsData = Data.create()
 
+FalsifyFlagsData.type = 0x1B
 FalsifyFlagsData.size = 0x08
 FalsifyFlagsData.metadata = 
 {
@@ -23,6 +26,7 @@ FalsifyFlagsData.metadata =
 
 local CollectObjectData = Data.create()
 
+CollectObjectData.type = 0x1C
 CollectObjectData.size = 0x08
 CollectObjectData.metadata = 
 {
@@ -30,6 +34,7 @@ CollectObjectData.metadata =
 
 local DiscardObjectData = Data.create()
 
+DiscardObjectData.type = 0x1D
 DiscardObjectData.size = 0x08
 DiscardObjectData.metadata = 
 {
@@ -37,6 +42,7 @@ DiscardObjectData.metadata =
 
 local PhotographObjectData = Data.create()
 
+PhotographObjectData.type = 0x1E
 PhotographObjectData.size = 0x10
 PhotographObjectData.metadata = 
 {
@@ -44,6 +50,7 @@ PhotographObjectData.metadata =
 
 local EnterRoomData = Data.create()
 
+EnterRoomData.type = 0x20
 EnterRoomData.size = 0x10
 EnterRoomData.metadata = 
 {
@@ -51,6 +58,7 @@ EnterRoomData.metadata =
 
 local DepositObjectData = Data.create()
 
+DepositObjectData.type = 0x21
 DepositObjectData.size = 0x14
 DepositObjectData.metadata = 
 {
@@ -58,6 +66,7 @@ DepositObjectData.metadata =
 
 local GetKeyAnalyzerData = Data.create()
 
+GetKeyAnalyzerData.type = 0x22
 GetKeyAnalyzerData.size = 0x04
 GetKeyAnalyzerData.metadata = 
 {

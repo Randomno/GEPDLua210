@@ -16,6 +16,17 @@ function ObjectDataReader.create()
 	return object_data_reader
 end
 
+function ObjectDataReader:clone()
+	local clone = {}
+	
+	setmetatable(clone, ObjectDataReader)
+	
+	clone.current_address = self.current_address
+	clone.current_data = self.current_data
+	
+	return clone
+end
+
 function ObjectDataReader:reached_end()
 	return (not self.current_data and true or false)
 end

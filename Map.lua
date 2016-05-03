@@ -189,13 +189,19 @@ function parse_map_file(_filename)
 	return output
 end
 
-local quadtree = nil
-
 function init_quadtree(_bounds, _edges)
-	quadtree = QuadTree.create(_bounds.min_x, _bounds.min_z, _bounds.width, _bounds.height, 1)
+	local quadtree = QuadTree.create(_bounds.min_x, _bounds.min_z, _bounds.width, _bounds.height, 1)
 	
+	if _edges then
+		append_quadtree(quadtree, _edges)
+	end
+	
+	return quadtree
+end
+
+function append_quadtree(_quadtree, _edges)
 	for index, edge in ipairs(_edges) do
-		quadtree:insert(edge)
+		_quadtree:insert(edge)
 	end
 end
 
@@ -220,7 +226,116 @@ function load_level(_name)
 	level.bounds.width = (level.bounds.max_x - level.bounds.min_x)
 	level.bounds.height = (level.bounds.max_z - level.bounds.min_z)
 	
-	init_quadtree(level.bounds, level.edges)
+	level.quadtree = init_quadtree(level.bounds, level.edges)
+end
+
+function get_distance_2d(_x1, _y1, _x2, _y2)
+	local diff_x = (_x1 - _x2)
+	local diff_y = (_y1 - _y2)
+	
+	return math.sqrt((diff_x * diff_x) + (diff_y * diff_y))
+end
+
+function get_distance_3d(_x1, _y1, _z1, _x2, _y2, _z2)
+	local diff_x = (_x1 - _x2)
+	local diff_y = (_y1 - _y2)
+	local diff_z = (_z1 - _z2)
+	
+	return math.sqrt((diff_x * diff_x) + (diff_y * diff_y) + (diff_z * diff_z))
+end
+
+local objects = {}
+
+function get_object_edges(_object_data_reader)
+	local edges = {}	
+	local points, y_min, y_max = _object_data_reader:get_collision_data()
+	
+	for i = 1, #points, 1 do
+		local j = ((i % #points) + 1)
+		
+		local edge = {}
+		
+		edge.x1 = points[i].x
+		edge.z1 = points[i].z
+		edge.x2 = points[j].x
+		edge.z2 = points[j].z	
+		
+		edge.y_min = y_min
+		edge.y_max = y_max
+		
+		table.insert(edges, edge)
+	end
+	
+	return edges
+end
+
+function load_static_object(_object_data_reader)	
+	local static_object = {}
+	
+	static_object.edges = get_object_edges(_object_data_reader)
+	static_object.data_reader = _object_data_reader:clone()
+	
+	append_quadtree(objects.quadtree, static_object.edges)
+
+	table.insert(objects.static, static_object)
+end
+
+function load_dynamic_object(_object_data_reader)
+	local dynamic_object = {}
+	
+	-- TODO: Handle door displacement
+	local position = _object_data_reader:get_value("position")	
+	local edges = get_object_edges(_object_data_reader)
+	
+	local max_distance = 0.0
+	
+	for index, edge in ipairs(edges) do
+		local distance = get_distance_2d(edge.x1, edge.z1, position[1], position[3])
+		
+		max_distance = math.max(max_distance, distance)
+	end
+	
+	dynamic_object.bounding_radius = max_distance
+	dynamic_object.data_reader = _object_data_reader:clone()
+
+	table.insert(objects.dynamic, dynamic_object)
+end
+
+function load_object(_object_data_reader)	
+	local is_door = (_object_data_reader.current_data.type == 0x01)
+	local is_vehicle = (_object_data_reader.current_data.type == 0x27)
+	local is_tank = (_object_data_reader.current_data.type == 0x2D)
+	
+	if is_door then
+		local state = _object_data_reader:get_value("state")
+	
+		-- Is the door opening or closing?
+		if (state == 0x01) or (state == 0x02) then
+			load_dynamic_object(_object_data_reader)
+		else
+			load_static_object(_object_data_reader)
+		end	
+	elseif is_vehicle or is_tank then
+		load_dynamic_object(_object_data_reader)	
+	else
+		load_static_object(_object_data_reader)
+	end
+end
+
+function load_objects()	
+	objects.static = {}
+	objects.dynamic = {}	
+	objects.quadtree = init_quadtree(level.bounds)
+	
+	local object_data_reader = ObjectDataReader.create()	
+	
+	while not object_data_reader:reached_end() do
+		if object_data_reader:check_flag("force_collisions") then
+			load_object(object_data_reader)
+		end
+	
+		object_data_reader:next_object()
+	end
 end
 
 function units_to_pixels(_units)
@@ -319,14 +434,16 @@ function draw_line(_start, _end, _height, _color, _alpha_function)
 		((line.x2 < map.min_x) or (line.x2 > map.max_x)) or
 		((line.y2 < map.min_y) or (line.y2 > map.max_y))) then
 		line = clip_line(line, map)
+		
+		if not line then
+			return
+		end
 	end
 	
-	if line then
-		local is_active = is_active_floor(_height)
-		local color = (_color + _alpha_function(is_active))
-	
-		gui.drawLine(line.x1, line.y1, line.x2, line.y2, color)	
-	end	
+	local is_active = is_active_floor(_height)
+	local color = (_color + _alpha_function(is_active))
+
+	gui.drawLine(line.x1, line.y1, line.x2, line.y2, color)	
 end
 
 function get_map_alpha(_is_active)
@@ -340,7 +457,7 @@ function draw_map()
 	bounds.x1, bounds.z1 = screen_to_level(map.min_x, map.min_y)
 	bounds.x2, bounds.z2 = screen_to_level(map.max_x, map.max_y)
 	
-	quadtree:find_collisions(bounds, collisions)
+	level.quadtree:find_collisions(bounds, collisions)
 	
 	for key, object in pairs(collisions) do
 		local edge_start = {["x"] = object.x1, ["z"] = object.z1}
@@ -354,36 +471,49 @@ function get_object_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.object_inactive_alpha)
 end
 
-function draw_object(_object_data_reader)	
-	local points, y_min, y_max = _object_data_reader:get_collision_data()
-	
-	for i = 1, #points, 1 do
-		local j = ((i % #points) + 1)
+function draw_object_edge(_edge)
+	local edge_start = {["x"] = _edge.x1, ["z"] = _edge.z1}
+	local edge_end = {["x"] = _edge.x2, ["z"] = _edge.z2}
+		
+	draw_line(edge_start, edge_end, _edge.y_min, colors.object_default, get_object_alpha)
+end
 
-		draw_line(points[i], points[j], y_min, colors.object_default, get_object_alpha)						
-	end	
+function draw_static_objects(_bounds)
+	local collisions = {}
+	
+	objects.quadtree:find_collisions(_bounds, collisions)
+	
+	for key, object in pairs(collisions) do
+		draw_object_edge(object)
+	end
+end
+
+function draw_dynamic_objects(_bounds)
+	for i = #objects.dynamic, 1, -1 do
+		local dynamic_object = objects.dynamic[i]		
+		local position = dynamic_object.data_reader:get_value("position")
+		
+		if (((position[1] + dynamic_object.bounding_radius) > _bounds.x1) and
+			((position[3] + dynamic_object.bounding_radius) > _bounds.z1) and
+			((position[1] - dynamic_object.bounding_radius) < _bounds.x2) and
+			((position[3] - dynamic_object.bounding_radius) < _bounds.z2)) then
+			local edges = get_object_edges(dynamic_object.data_reader)
+			
+			for index, edge in ipairs(edges) do
+				draw_object_edge(edge)
+			end
+		end
+	end
 end
 
 function draw_objects()
 	local bounds = {}
 	
-	bounds.min_x, bounds.min_z = screen_to_level(map.min_x, map.min_y)
-	bounds.max_x, bounds.max_z = screen_to_level(map.max_x, map.max_y)
-	
-	local object_data_reader = ObjectDataReader.create()	
-			
-	while not object_data_reader:reached_end() do		
-		if object_data_reader:check_flag("force_collisions") then	
-			local position = object_data_reader:get_value("position")
-			
-			if (((position[1] + 500.0) > bounds.min_x) and ((position[1] - 500.0) < bounds.max_x) and
-				((position[3] + 500.0) > bounds.min_z) and ((position[3] - 500.0) < bounds.max_z)) then
-				draw_object(object_data_reader)
-			end
-		end	
-		
-		object_data_reader:next_object()
-	end
+	bounds.x1, bounds.z1 = screen_to_level(map.min_x, map.min_y)
+	bounds.x2, bounds.z2 = screen_to_level(map.max_x, map.max_y)
+
+	draw_static_objects(bounds)
+	draw_dynamic_objects(bounds)
 end
 
 function get_view_cone_alpha(_is_active)
@@ -427,14 +557,6 @@ function draw_character(_x, _z, _radius, _clipping_height, _view_angle, _id, _co
 	end
 end
 
-function get_distance(_p1, _p2)
-	local diff_x = (_p1.x - _p2.x)
-	local diff_y = (_p1.y - _p2.y)
-	local diff_z = (_p1.z - _p2.z)
-	
-	return math.sqrt((diff_x * diff_x) + (diff_y * diff_y) + (diff_z * diff_z))
-end
-
 local loaded_states = {}
 
 function check_loaded_state(_id, _position, _segment_info)
@@ -462,7 +584,7 @@ function check_loaded_state(_id, _position, _segment_info)
 	if ((_position.x ~= loaded_state.position.x) or
 		(_position.y ~= loaded_state.position.y) or 
 		(_position.z ~= loaded_state.position.z)) then		
-		local distance = get_distance(_position, loaded_state.position)
+		local distance = get_distance_3d(_position.x, _position.y, _position.z, loaded_state.position.x, loaded_state.position.y, loaded_state.position.z)
 		
 		if (distance <= 20.0) then
 			loaded_state.is_loaded = true
@@ -649,7 +771,7 @@ end
 
 local previous_mouse =  nil
 
-function on_update_mouse()
+function update_mouse()
 	current_mouse = input.getmouse()
 	
 	if (previous_mouse) and (previous_mouse.Left) then	
@@ -722,7 +844,7 @@ end
 
 local previous_keyboard = nil
 
-function on_update_keyboard()
+function update_keyboard()
 	local current_keyboard = input.get()
 	
 	if previous_keyboard then
@@ -742,7 +864,7 @@ function on_update_keyboard()
 	previous_keyboard = current_keyboard
 end
 
-function on_update_camera()	
+function update_camera()	
 	if (camera.mode == 2) then
 		if target.id then
 			local target_position = get_position_of_id(target.id)
@@ -785,6 +907,61 @@ function on_update_camera()
 	gui.drawText(120, output_y, "Target: " .. target_id_string)
 end
 
+function update_static_objects()
+	local count = #objects.static
+
+	for i = count, 1, -1 do
+		local static_object = objects.static[i]
+		
+		if (static_object.data_reader.current_data.type == 0x01) then
+			local state = static_object.data_reader:get_value("state")
+			
+			if (state == 0x01) or (state == 0x02) then
+				load_dynamic_object(static_object.data_reader)
+
+				table.remove(objects.static, i)
+			end
+		elseif not static_object.data_reader:check_flag("force_collisions") then
+			table.remove(objects.static, i)
+		end
+	end
+	
+	-- Rebuild quadtree (if needed)
+	if #objects.static ~= count then 
+		objects.quadtree = init_quadtree(level.bounds)
+	
+		for index, object in ipairs(objects.static) do
+			append_quadtree(objects.quadtree, object.edges)
+		end
+	end
+end
+
+function update_dynamic_objects()
+	for i = #objects.dynamic, 1, -1 do
+		local dynamic_object = objects.dynamic[i]
+		
+		if (dynamic_object.data_reader.current_data.type == 0x01) then
+			local state = dynamic_object.data_reader:get_value("state")
+			
+			if (state ~= 0x01) and (state ~= 0x02) then			
+				load_static_object(dynamic_object.data_reader)
+				
+				table.remove(objects.dynamic, i)
+			end
+		end	
+	end
+end
+
+-- TODO: LoadState handling
+function update_objects()
+	update_static_objects()
+	update_dynamic_objects()
+end
+
+function on_load_state()
+	load_objects()
+end
+
 local previous_mission = 0xFF
 
 function on_update()
@@ -802,15 +979,19 @@ function on_update()
 	
 	local current_mission = GameState.get_current_mission()
 	
-	if current_mission ~= previous_mission then					
-		load_level(GameState.get_mission_name(current_mission))
+	if current_mission ~= previous_mission then	
+		local mission_name = GameState.get_mission_name(current_mission)
+	
+		load_level(mission_name)
+		load_objects()
 		
 		previous_mission = current_mission
 	end
 
-	on_update_mouse()
-	on_update_keyboard()
-	on_update_camera()	
+	update_mouse()
+	update_keyboard()
+	update_camera()	
+	update_objects()
 	
 	draw_map()
 	draw_objects()
@@ -820,4 +1001,5 @@ end
 
 load_level_data()
 
+event.onloadstate(on_load_state)
 event.onframeend(on_update)
