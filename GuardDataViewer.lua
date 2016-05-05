@@ -1,4 +1,4 @@
-require "GuardData"
+require "Data\\GuardData"
 
 local guard_data_mnemonics = 
 {
