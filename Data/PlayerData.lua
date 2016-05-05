@@ -1,6 +1,8 @@
-PlayerData = {}
+require "Data\\Data"
 
-PlayerData.address = 0x079EE0
+PlayerData = Data.create()
+
+PlayerData.start_address_pointer = 0x079EE0
 PlayerData.metadata = 
 {
 	{["offset"] = 0x074, ["size"] = 0x4, ["type"] = "float", 	["name"] = "clipping_height"},
@@ -34,39 +36,20 @@ PlayerData.metadata =
 	{["offset"] = 0x204, ["size"] = 0x4, ["type"] = "float", 	["name"] = "pause_starting_angle"},
 	{["offset"] = 0x20C, ["size"] = 0x4, ["type"] = "float", 	["name"] = "pause_target_angle"},
 	{["offset"] = 0x224, ["size"] = 0x4, ["type"] = "float", 	["name"] = "pause_animation_counter"},
-	{["offset"] = 0x48C, ["size"] = 0x4, ["type"] = "float", 	["name"] = "position_x"},
-	{["offset"] = 0x490, ["size"] = 0x4, ["type"] = "float", 	["name"] = "position_y"},
-	{["offset"] = 0x494, ["size"] = 0x4, ["type"] = "float", 	["name"] = "position_z"},
+	{["offset"] = 0x48C, ["size"] = 0xC, ["type"] = "vector", 	["name"] = "position"},
 	{["offset"] = 0x4B0, ["size"] = 0x4, ["type"] = "float", 	["name"] = "collision_radius"},
 	{["offset"] = 0x500, ["size"] = 0x4, ["type"] = "float",	["name"] = "ground_offset"},
-	{["offset"] = 0x520, ["size"] = 0x4, ["type"] = "float", 	["name"] = "speed_x"},
-	{["offset"] = 0x524, ["size"] = 0x4, ["type"] = "float", 	["name"] = "speed_y"},
-	{["offset"] = 0x528, ["size"] = 0x4, ["type"] = "float", 	["name"] = "speed_z"},
+	{["offset"] = 0x520, ["size"] = 0xC, ["type"] = "vector", 	["name"] = "speed"},
 	{["offset"] = 0x550, ["size"] = 0x4, ["type"] = "float",	["name"] = "stationary_ground_offset"},
 	{["offset"] = 0xA80, ["size"] = 0x4, ["type"] = "float", 	["name"] = "noise"}
 }
 
-local metadata_by_name = {}
-
-for index, metadata in ipairs(PlayerData.metadata) do
-	metadata_by_name[metadata.name] = metadata
+function PlayerData.get_start_address()
+	return (mainmemory.read_u32_be(PlayerData.start_address_pointer) - 0x80000000)
 end
 
 function PlayerData.get_value(_name)
-	local player_data_address = (mainmemory.read_u32_be(PlayerData.address) - 0x80000000)
-	local metadata = metadata_by_name[_name]	
+	local start_address = PlayerData.get_start_address()
 	
-	if (metadata.size == 1) then
-		return mainmemory.read_u8(player_data_address + metadata.offset)
-	elseif (metadata.size == 2) then
-		return mainmemory.read_u16_be(player_data_address + metadata.offset)
-	elseif (metadata.size == 4) then
-		if (metadata.type == "float") then
-			return mainmemory.readfloat(player_data_address + metadata.offset, true)
-		else
-			return mainmemory.read_u32_be(player_data_address + metadata.offset)
-		end
-	else
-		error("Invalid value size")
-	end	
+	return PlayerData.__index.get_value(PlayerData, start_address, _name)
 end

@@ -1,6 +1,5 @@
 require "Data\\GameData"
 require "Data\\PlayerData"
-require "Data\\PositionData"
 require "Utilities\\QuadTree"
 require "Utilities\\GuardDataReader"
 require "Utilities\\ObjectDataReader"
@@ -26,7 +25,8 @@ local camera = {}
 
 camera.modes = {"Manual", "Follow"}
 camera.mode = 2
-camera.position = {["x"] = 0.0, ["z"] = 0.0}
+camera.position_x = 0.0
+camera.position_z = 0.0
 camera.floor = 0
 camera.zoom = 4.0
 camera.zoom_min = 1.0
@@ -248,7 +248,7 @@ local objects = {}
 
 function get_object_edges(_object_data_reader)
 	local edges = {}	
-	local points, y_min, y_max = _object_data_reader:get_collision_data()
+	local points, min_y, max_y = _object_data_reader:get_collision_data()
 	
 	for i = 1, #points, 1 do
 		local j = ((i % #points) + 1)
@@ -256,12 +256,11 @@ function get_object_edges(_object_data_reader)
 		local edge = {}
 		
 		edge.x1 = points[i].x
-		edge.z1 = points[i].z
+		edge.y1 = min_y
+		edge.z1 = points[i].y
 		edge.x2 = points[j].x
-		edge.z2 = points[j].z	
-		
-		edge.y_min = y_min
-		edge.y_max = y_max
+		edge.y2 = max_y
+		edge.z2 = points[j].y		
 		
 		table.insert(edges, edge)
 	end
@@ -290,7 +289,7 @@ function load_dynamic_object(_object_data_reader)
 	local max_distance = 0.0
 	
 	for index, edge in ipairs(edges) do
-		local distance = get_distance_2d(edge.x1, edge.z1, position[1], position[3])
+		local distance = get_distance_2d(edge.x1, edge.z1, position.x, position.z)
 		
 		max_distance = math.max(max_distance, distance)
 	end
@@ -347,8 +346,8 @@ function pixels_to_units(_pixels)
 end
 
 function level_to_screen(_x, _z)
-	local diff_x = units_to_pixels(_x - camera.position.x)
-	local diff_z = units_to_pixels(_z - camera.position.z)
+	local diff_x = units_to_pixels(_x - camera.position_x)
+	local diff_z = units_to_pixels(_z - camera.position_z)
 	
 	local screen_x = (map.center_x + diff_x)
 	local screen_y = (map.center_y + diff_z)
@@ -360,8 +359,8 @@ function screen_to_level(_x, _y)
 	local diff_x = (_x - map.center_x)
 	local diff_y = (_y - map.center_y)
 	
-	local level_x = (pixels_to_units(diff_x) + camera.position.x)
-	local level_z = (pixels_to_units(diff_y) + camera.position.z)
+	local level_x = (pixels_to_units(diff_x) + camera.position_x)
+	local level_z = (pixels_to_units(diff_y) + camera.position_z)
 	
 	return level_x, level_z
 end
@@ -423,11 +422,11 @@ function clip_line(_line, _bounds)
 	return clipped_line
 end
 
-function draw_line(_start, _end, _height, _color, _alpha_function)
+function draw_line(_line, _color, _alpha_function)
 	local line = {}
 
-	line.x1, line.y1 = level_to_screen(_start.x, _start.z)
-	line.x2, line.y2 = level_to_screen(_end.x, _end.z)
+	line.x1, line.y1 = level_to_screen(_line.x1, _line.z1)
+	line.x2, line.y2 = level_to_screen(_line.x2, _line.z2)
 	
 	if (((line.x1 < map.min_x) or (line.x1 > map.max_x)) or
 		((line.y1 < map.min_y) or (line.y1 > map.max_y)) or
@@ -438,9 +437,17 @@ function draw_line(_start, _end, _height, _color, _alpha_function)
 		if not line then
 			return
 		end
+	end	
+	
+	local min_height, max_height = _line.y1, _line.y2
+	
+	if (max_height < min_height) then
+		min_height, max_height = max_height, min_height
 	end
 	
-	local is_active = is_active_floor(_height)
+	local is_active = ((get_floor(min_height) <= camera.floor) and 
+					   (get_floor(max_height) >= camera.floor))
+					   
 	local color = (_color + _alpha_function(is_active))
 
 	gui.drawLine(line.x1, line.y1, line.x2, line.y2, color)	
@@ -459,11 +466,8 @@ function draw_map()
 	
 	level.quadtree:find_collisions(bounds, collisions)
 	
-	for key, object in pairs(collisions) do
-		local edge_start = {["x"] = object.x1, ["z"] = object.z1}
-		local edge_end = {["x"] = object.x2, ["z"] = object.z2}
-		
-		draw_line(edge_start, edge_end, object.y1, colors.map_default, get_map_alpha)
+	for key, edge in pairs(collisions) do		
+		draw_line(edge, colors.map_default, get_map_alpha)
 	end
 end
 
@@ -471,20 +475,13 @@ function get_object_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.object_inactive_alpha)
 end
 
-function draw_object_edge(_edge)
-	local edge_start = {["x"] = _edge.x1, ["z"] = _edge.z1}
-	local edge_end = {["x"] = _edge.x2, ["z"] = _edge.z2}
-		
-	draw_line(edge_start, edge_end, _edge.y_min, colors.object_default, get_object_alpha)
-end
-
 function draw_static_objects(_bounds)
 	local collisions = {}
 	
 	objects.quadtree:find_collisions(_bounds, collisions)
 	
-	for key, object in pairs(collisions) do
-		draw_object_edge(object)
+	for key, edge in pairs(collisions) do
+		draw_line(edge, colors.object_default, get_object_alpha)
 	end
 end
 
@@ -493,14 +490,14 @@ function draw_dynamic_objects(_bounds)
 		local dynamic_object = objects.dynamic[i]		
 		local position = dynamic_object.data_reader:get_value("position")
 		
-		if (((position[1] + dynamic_object.bounding_radius) > _bounds.x1) and
-			((position[3] + dynamic_object.bounding_radius) > _bounds.z1) and
-			((position[1] - dynamic_object.bounding_radius) < _bounds.x2) and
-			((position[3] - dynamic_object.bounding_radius) < _bounds.z2)) then
+		if (((position.x + dynamic_object.bounding_radius) > _bounds.x1) and
+			((position.z + dynamic_object.bounding_radius) > _bounds.z1) and
+			((position.x - dynamic_object.bounding_radius) < _bounds.x2) and
+			((position.z - dynamic_object.bounding_radius) < _bounds.z2)) then
 			local edges = get_object_edges(dynamic_object.data_reader)
 			
 			for index, edge in ipairs(edges) do
-				draw_object_edge(edge)
+				draw_line(edge, colors.object_default, get_object_alpha)
 			end
 		end
 	end
@@ -524,8 +521,8 @@ function get_target_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.target_inactive_alpha)
 end
 
-function draw_character(_x, _z, _radius, _clipping_height, _view_angle, _id, _color, _alpha_function)
-	local screen_x, screen_y = level_to_screen(_x, _z)
+function draw_character(_position, _radius, _clipping_height, _view_angle, _id, _color, _alpha_function)
+	local screen_x, screen_y = level_to_screen(_position.x, _position.z)
 	local screen_radius = units_to_pixels(_radius)
 	local screen_diameter = (screen_radius * 2)
 		
@@ -561,7 +558,13 @@ local loaded_states = {}
 
 function check_loaded_state(_id, _position, _segment_info)
 	if not loaded_states[_id] then
-		loaded_states[_id] = {["is_loaded"] = true, ["position"] = _position, ["segment_info"] = _segment_info}
+		local loaded_state = {}
+		
+		loaded_state.is_loaded = true
+		loaded_state.position = _position
+		loaded_state.segment_info = _segment_info
+		
+		loaded_states[_id] = loaded_state
 	end
 	
 	local loaded_state = loaded_states[_id]
@@ -622,7 +625,7 @@ function draw_guard(_guard_data_reader)
 		return
 	end	
 	
-	local position = _guard_data_reader:get_position()
+	local current_position = _guard_data_reader:get_position()
 	local current_action = _guard_data_reader:get_value("current_action")
 	local collision_radius = _guard_data_reader:get_value("collision_radius")
 	local clipping_height = _guard_data_reader:get_value("clipping_height")		
@@ -637,24 +640,36 @@ function draw_guard(_guard_data_reader)
 		local segment_info = _guard_data_reader:get_segment_info(is_path)		
 		local target_position = _guard_data_reader:get_target_position(is_path)
 		
-		draw_line(position, target_position, clipping_height, color, get_unloaded_alpha)
-		
-		is_loaded = check_loaded_state(id, position, segment_info)
+		is_loaded = check_loaded_state(id, current_position, segment_info)		
 		
 		if not is_loaded then
-			local dir_x = ((target_position.x - position.x) / segment_info.length)
-			local dir_z = ((target_position.z - position.z) / segment_info.length)
+			local dir_x = ((target_position.x - current_position.x) / segment_info.length)
+			local dir_z = ((target_position.z - current_position.z) / segment_info.length)
 			
-			local unloaded_position_x = (position.x + (dir_x * segment_info.coverage))
-			local unloaded_position_z = (position.z + (dir_z * segment_info.coverage))
+			local segment_position = {}
 			
-			draw_character(unloaded_position_x, unloaded_position_z, collision_radius, clipping_height, nil, nil, color, get_unloaded_alpha)
+			segment_position.x = (current_position.x + (dir_x * segment_info.coverage))
+			segment_position.z = (current_position.z + (dir_z * segment_info.coverage))
+			
+			draw_character(segment_position, collision_radius, clipping_height, nil, nil, color, get_unloaded_alpha)
 		end
+		
+		local segment_line = {}
+		
+		segment_line.x1 = current_position.x
+		segment_line.y1 = clipping_height
+		segment_line.z1 = current_position.z
+		
+		segment_line.x2 = target_position.x
+		segment_line.y2 = clipping_height
+		segment_line.z2 = target_position.z		
+		
+		draw_line(segment_line, color, get_unloaded_alpha)
 	end
 	
 	local alpha_function = (is_loaded and get_default_alpha or get_unloaded_alpha)
 	
-	draw_character(position.x, position.z, collision_radius, clipping_height, nil, id, color, alpha_function)
+	draw_character(current_position, collision_radius, clipping_height, nil, id, color, alpha_function)
 end
 
 function draw_guards()
@@ -666,22 +681,17 @@ function draw_guards()
 end
 
 function draw_bond()
-	local x = PlayerData.get_value("position_x")
-	local z = PlayerData.get_value("position_z")
+	local position = PlayerData.get_value("position")
 	local radius = PlayerData.get_value("collision_radius")
 	local clipping_height = PlayerData.get_value("clipping_height")
 	local view_angle = (PlayerData.get_value("azimuth_angle") + 90)
 	
-	draw_character(x, z, radius, clipping_height, view_angle, 0xFF, colors.bond_default, get_default_alpha)
+	draw_character(position, radius, clipping_height, view_angle, 0xFF, colors.bond_default, get_default_alpha)
 end
 
 function get_position_of_id(_id)
-	if (_id == 0xFF) then
-		local x = PlayerData.get_value("position_x")
-		local y = PlayerData.get_value("position_y")
-		local z = PlayerData.get_value("position_z")
-		
-		return {["x"] = x, ["y"] = y, ["z"] = z}
+	if (_id == 0xFF) then		
+		return PlayerData.get_value("position")
 	else
 		local guard_data_reader = GuardDataReader.create()
 		
@@ -715,7 +725,7 @@ function get_clipping_height_of_id(_id)
 	return nil
 end
 
-function find_nearest_target(x, y)
+function find_nearest_target(_x, _y)
 	local ids = {0xFF}	
 	
 	local guard_data_reader = GuardDataReader.create()
@@ -731,8 +741,8 @@ function find_nearest_target(x, y)
 		
 		local screen_x, screen_y = level_to_screen(position.x, position.z)
 		
-		local diff_x = (screen_x - x)
-		local diff_y = (screen_y - y)
+		local diff_x = (screen_x - _x)
+		local diff_y = (screen_y - _y)
 		
 		local distance = math.sqrt((diff_x * diff_x) + (diff_y * diff_y))
 		
@@ -750,22 +760,22 @@ function find_nearest_target(x, y)
 	return nearest_id_and_distance.id
 end
 
-function on_mouse_button_down(x, y)
-	target.id = find_nearest_target(x, y)
+function on_mouse_button_down(_x, _y)
+	target.id = find_nearest_target(_x, _y)
 end
 
-function on_mouse_button_up(x, y)
+function on_mouse_button_up(_x, _y)
 end
 
-function on_mouse_drag(diff_x, diff_y)	
+function on_mouse_drag(_diff_x, _diff_y)	
 	 if (camera.mode == 1) then
-		 camera.position.x = (camera.position.x - pixels_to_units(diff_x))
-		 camera.position.z = (camera.position.z - pixels_to_units(diff_y))
+		 camera.position_x = (camera.position_x - pixels_to_units(_diff_x))
+		 camera.position_z = (camera.position_z - pixels_to_units(_diff_y))
 		 
-		 camera.position.x = math.max(camera.position.x, level.bounds.min_x)
-		 camera.position.x = math.min(camera.position.x, level.bounds.max_x)
-		 camera.position.z = math.max(camera.position.z, level.bounds.min_z)
-		 camera.position.z = math.min(camera.position.z, level.bounds.max_z)
+		 camera.position_x = math.max(camera.position_x, level.bounds.min_x)
+		 camera.position_x = math.min(camera.position_x, level.bounds.max_x)
+		 camera.position_z = math.max(camera.position_z, level.bounds.min_z)
+		 camera.position_z = math.min(camera.position_z, level.bounds.max_z)
 	 end
 end
 
@@ -871,9 +881,8 @@ function update_camera()
 			local target_clipping_height = get_clipping_height_of_id(target.id)
 			
 			if target_position and target_clipping_height then
-				camera.position.x = target_position.x
-				camera.position.z = target_position.z
-				
+				camera.position_x = target_position.x
+				camera.position_z = target_position.z				
 				camera.floor = get_floor(target_clipping_height)
 			end
 		end	
@@ -882,7 +891,7 @@ function update_camera()
 	local output_y = (screen.height - 19)
 	
 	gui.drawText(10, output_y, "Mode: " .. camera.modes[camera.mode])
-	gui.drawText(394, output_y, string.format("X: %d Z: %d", camera.position.x, camera.position.z))
+	gui.drawText(394, output_y, string.format("X: %d Z: %d", camera.position_x, camera.position_z))
 	gui.drawText((screen.width - 85), output_y, "Zoom: " .. camera.zoom .. "x")
 	
 	local floor_suffixes = {"%dst", "%dnd", "%drd", "%dth"}		
@@ -952,7 +961,6 @@ function update_dynamic_objects()
 	end
 end
 
--- TODO: LoadState handling
 function update_objects()
 	update_static_objects()
 	update_dynamic_objects()
@@ -965,11 +973,11 @@ end
 local previous_mission = 0xFF
 
 function on_update()
-	if GameState.get_current_scene() ~= 0xB then
+	if (GameData.get_current_scene() ~= 0xB) then
 		return
 	end
 	
-	if GameState.get_global_time_divided_by_four() == 0 then
+	if (GameData.get_global_time_divided_by_four() == 0) then
 		return
 	end		
 	
@@ -977,10 +985,10 @@ function on_update()
 		return
 	end
 	
-	local current_mission = GameState.get_current_mission()
+	local current_mission = GameData.get_current_mission()
 	
-	if current_mission ~= previous_mission then	
-		local mission_name = GameState.get_mission_name(current_mission)
+	if (current_mission ~= previous_mission) then	
+		local mission_name = GameData.get_mission_name(current_mission)
 	
 		load_level(mission_name)
 		load_objects()

@@ -41,7 +41,7 @@ PhysicalObjectData.metadata =
 	{["offset"] = 0x0C, ["size"] = 0x04, ["type"] = "bitfield", ["name"] = "flags_2"},
 	{["offset"] = 0x10, ["size"] = 0x04, ["type"] = "hex", 		["name"] = "position_data_pointer"},
 	{["offset"] = 0x18, ["size"] = 0x40, ["type"] = "matrix", 	["name"] = "transform"},
-	{["offset"] = 0x58, ["size"] = 0x10, ["type"] = "vector4",	["name"] = "position"},
+	{["offset"] = 0x58, ["size"] = 0x10, ["type"] = "vector",	["name"] = "position"},
 	{["offset"] = 0x68, ["size"] = 0x04, ["type"] = "hex",		["name"] = "collision_data_pointer"},
 	{["offset"] = 0x70, ["size"] = 0x04, ["type"] = "float",	["name"] = "damage_received"},
 	{["offset"] = 0x74, ["size"] = 0x04, ["type"] = "float",	["name"] = "health"},

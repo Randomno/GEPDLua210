@@ -1,6 +1,15 @@
 Data = {}
 Data.__index = Data
-Data.__concat = function(_lhs, _rhs)
+
+function Data.create()
+	local data = {}
+	
+	setmetatable(data, Data)
+	
+	return data
+end
+
+function Data.__concat(_lhs, _rhs)
 	local concat = Data.create()
 	
 	concat.type = _rhs.type
@@ -24,13 +33,6 @@ Data.__concat = function(_lhs, _rhs)
 	return concat
 end
 
-function Data.create()
-	local data = {}
-	
-	setmetatable(data, Data)
-	
-	return data
-end
 
 function Data:get_metadata(_name)
 	if not self.metadata_by_name then
@@ -44,17 +46,16 @@ function Data:get_metadata(_name)
 	return self.metadata_by_name[_name]
 end
 
-local function get_vector(_address, _metadata, _dimensions)
-	if (_metadata.size ~= (_dimensions * 0x04)) then
-		error("Invalid vector size")
-	end
-	
+local dimension_mnemonics = {"x", "y", "z", "w"}
+
+local function get_vector(_address, _metadata)
+	local dimensions = (_metadata.size / 0x04)	
 	local vector = {}
 
-	for i = 1, _dimensions, 1 do
+	for i = 1, dimensions, 1 do
 		local offset = (_metadata.offset + ((i - 1) * 0x04))
 		
-		table.insert(vector, mainmemory.readfloat((_address + offset), true))
+		vector[dimension_mnemonics[i]] = mainmemory.readfloat((_address + offset), true)
 	end
 	
 	return vector
@@ -77,13 +78,9 @@ function Data:get_value(_address, _name)
 		else
 			return mainmemory.read_u32_be(_address + metadata.offset)
 		end
-	else
-		if (bizstring.startswith(metadata.type, "vector")) then		
-			local dimensions = tonumber(string.sub(metadata.type, 7, 7))
-		
-			return get_vector(_address, metadata, dimensions)
-		else	
-			error("Invalid size value")
-		end
+	elseif (metadata.type == "vector") then
+		return get_vector(_address, metadata)
+	else	
+		error("Invalid size value")
 	end
 end

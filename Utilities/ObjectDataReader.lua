@@ -69,13 +69,11 @@ function ObjectDataReader:get_collision_data()
 	local count = CollisionData:get_value(collision_data_address, "point_count")
 	
 	for i = 1, count, 1 do
-		local point = CollisionData:get_value(collision_data_address, "point_" .. i)
-		
-		table.insert(points, {["x"] = point[1], ["z"] = point[2]})
+		points[i] = CollisionData:get_value(collision_data_address, "point_" .. i)
 	end
 	
-	local y_min = CollisionData:get_value(collision_data_address, "y_min")
-	local y_max = CollisionData:get_value(collision_data_address, "y_max")
+	local min_y = CollisionData:get_value(collision_data_address, "min_y")
+	local max_y = CollisionData:get_value(collision_data_address, "max_y")
 	
-	return points, y_min, y_max
+	return points, min_y, max_y
 end

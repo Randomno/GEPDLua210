@@ -49,18 +49,13 @@ function GuardDataReader:is_empty()
 end
 
 function GuardDataReader:get_value(_name)
-	return GuardData.get_value(self.slot_address, _name)
+	return GuardData:get_value(self.slot_address, _name)
 end
 
 function GuardDataReader:get_position()
 	local position_data_address = (self:get_value("position_data_pointer") - 0x80000000)
-	local position = {}
 	
-	position.x = PositionData.get_value(position_data_address, "position_x")
-	position.y = PositionData.get_value(position_data_address, "position_y")
-	position.z = PositionData.get_value(position_data_address, "position_z")
-	
-	return position
+	return PositionData:get_value(position_data_address, "position")
 end
 
 local get_path_prefix = function(_is_path)
@@ -79,21 +74,6 @@ end
 
 function GuardDataReader:get_target_position(_is_path)
 	local path_prefix = get_path_prefix(_is_path)
-	local target_position = {}
-
-	target_position.x = self:get_value(path_prefix .. "target_position_x")
-	target_position.y = self:get_value(path_prefix .. "target_position_y")
-	target_position.z = self:get_value(path_prefix .. "target_position_z")
 	
-	return target_position
-end
-
-function GuardDataReader:get_bond_position()
-	local bond_position = {}
-
-	bond_position.x = self:get_value("bond_x")
-	bond_position.y = self:get_value("bond_y")
-	bond_position.z = self:get_value("bond_z")
-	
-	return bond_position
+	return self:get_value(path_prefix .. "target_position")
 end

@@ -1,13 +1,13 @@
-GameState = {}
+GameData = {}
 
-GameState.current_scene_address = 0x02A8C0
-GameState.current_mission_address = 0x02A8FB
-GameState.global_timer_address = 0x04837C
-GameState.global_timer_divided_by_four_address = 0x079E80
-GameState.mission_timer_address = 0x079A20
-GameState.random_number_generator_address = 0x024464
+GameData.current_scene_address = 0x02A8C0
+GameData.current_mission_address = 0x02A8FB
+GameData.global_timer_address = 0x04837C
+GameData.global_timer_divided_by_four_address = 0x079E80
+GameData.mission_timer_address = 0x079A20
+GameData.random_number_generator_address = 0x024464
 
-GameState.scene_index_to_name = 
+GameData.scene_index_to_name = 
 {
 	"Twycross Classification",
 	"Nintendo Logo",
@@ -25,7 +25,7 @@ GameState.scene_index_to_name =
 	"Mission Time"
 }
 
-GameState.mission_index_to_name =
+GameData.mission_index_to_name =
 {
 	[0x01] = "Dam",
 	[0x02] = "Facility",
@@ -49,30 +49,30 @@ GameState.mission_index_to_name =
 	[0x1C] = "Egyptian"
 }
 
-function GameState.get_current_scene()
-	return mainmemory.read_u32_be(GameState.current_scene_address)
+function GameData.get_current_scene()
+	return mainmemory.read_u32_be(GameData.current_scene_address)
 end
 
-function GameState.get_current_mission()
-	return mainmemory.read_u8(GameState.current_mission_address)
+function GameData.get_current_mission()
+	return mainmemory.read_u8(GameData.current_mission_address)
 end
 
-function GameState.get_scene_name(_scene)
-	return GameState.scene_index_to_name[_scene]
+function GameData.get_scene_name(_scene)
+	return GameData.scene_index_to_name[_scene]
 end
 
-function GameState.get_mission_name(_mission)
-	return GameState.mission_index_to_name[_mission]
+function GameData.get_mission_name(_mission)
+	return GameData.mission_index_to_name[_mission]
 end
 
-function GameState.get_global_time()
-	return mainmemory.read_u32_be(GameState.global_timer_address)
+function GameData.get_global_time()
+	return mainmemory.read_u32_be(GameData.global_timer_address)
 end
 
-function GameState.get_mission_time()
-	return mainmemory.read_u32_be(GameState.mission_timer_address)
+function GameData.get_mission_time()
+	return mainmemory.read_u32_be(GameData.mission_timer_address)
 end
 
-function GameState.get_global_time_divided_by_four()
-	return mainmemory.readfloat(GameState.global_timer_divided_by_four_address, true)
+function GameData.get_global_time_divided_by_four()
+	return mainmemory.readfloat(GameData.global_timer_divided_by_four_address, true)
 end

@@ -9,7 +9,8 @@ function Debugger.on_event(_event)
 	end
 	
 	if (function_name == "sethook") or 
-		(function_name == "start_profiling") then
+		(function_name == "start_profiling") or
+		(function_name == "stop_profiling") then
 		return
 	end
 	
