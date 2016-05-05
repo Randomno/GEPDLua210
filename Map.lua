@@ -92,6 +92,8 @@ colors.view_cone_default = make_rgb(1.0, 1.0, 1.0)
 colors.view_cone_default_alpha = make_alpha(0.2)
 colors.view_cone_inactive_alpha = make_alpha(0.1)
 
+colors.speed_default = make_rgb(0.2, 0.8, 0.4)
+
 colors.target_default = make_rgb(1.0, 0.0, 0.0)
 colors.target_inactive_alpha = make_alpha(0.3)
 
@@ -521,7 +523,7 @@ function get_target_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.target_inactive_alpha)
 end
 
-function draw_character(_position, _radius, _clipping_height, _view_angle, _id, _color, _alpha_function)
+function draw_character(_position, _radius, _clipping_height, _view_angle, _speed, _id, _color, _alpha_function)
 	local screen_x, screen_y = level_to_screen(_position.x, _position.z)
 	local screen_radius = units_to_pixels(_radius)
 	local screen_diameter = (screen_radius * 2)
@@ -542,7 +544,19 @@ function draw_character(_position, _radius, _clipping_height, _view_angle, _id, 
 			local view_cone_color = (colors.view_cone_default + get_view_cone_alpha(is_active))
 			
 			gui.drawPie((screen_x - view_cone_radius), (screen_y - view_cone_radius), view_cone_diameter, view_cone_diameter, (_view_angle - 45), 90, view_cone_color, view_cone_color)
-		end
+			
+			if _speed then
+				local view_angle_radians = math.rad(_view_angle)
+				local view_angle_cosine = math.cos(view_angle_radians)
+				local view_angle_sine = math.sin(view_angle_radians)
+			
+				local speed_x = units_to_pixels((view_angle_cosine * _speed.z) - (view_angle_sine * _speed.x))
+				local speed_y = units_to_pixels((view_angle_cosine * _speed.x) + (view_angle_sine * _speed.z))				
+				local speed_color = (colors.speed_default + _alpha_function(is_active))
+				
+				gui.drawLine(screen_x, screen_y, (screen_x + speed_x), (screen_y + speed_y), speed_color)
+			end		
+		end		
 		
 		if is_target then
 			local target_radius = (screen_radius * target.scale)
@@ -651,7 +665,7 @@ function draw_guard(_guard_data_reader)
 			segment_position.x = (current_position.x + (dir_x * segment_info.coverage))
 			segment_position.z = (current_position.z + (dir_z * segment_info.coverage))
 			
-			draw_character(segment_position, collision_radius, clipping_height, nil, nil, color, get_unloaded_alpha)
+			draw_character(segment_position, collision_radius, clipping_height, nil, nil, nil, color, get_unloaded_alpha)
 		end
 		
 		local segment_line = {}
@@ -667,9 +681,7 @@ function draw_guard(_guard_data_reader)
 		draw_line(segment_line, color, get_unloaded_alpha)
 	end
 	
-	local alpha_function = (is_loaded and get_default_alpha or get_unloaded_alpha)
-	
-	draw_character(current_position, collision_radius, clipping_height, nil, id, color, alpha_function)
+	draw_character(current_position, collision_radius, clipping_height, nil, nil, id, color, get_default_alpha)
 end
 
 function draw_guards()
@@ -685,8 +697,9 @@ function draw_bond()
 	local radius = PlayerData.get_value("collision_radius")
 	local clipping_height = PlayerData.get_value("clipping_height")
 	local view_angle = (PlayerData.get_value("azimuth_angle") + 90)
+	local speed = PlayerData.get_value("speed")
 	
-	draw_character(position, radius, clipping_height, view_angle, 0xFF, colors.bond_default, get_default_alpha)
+	draw_character(position, radius, clipping_height, view_angle, speed, 0xFF, colors.bond_default, get_default_alpha)		
 end
 
 function get_position_of_id(_id)

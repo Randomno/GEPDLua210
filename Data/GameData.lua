@@ -2,6 +2,7 @@ GameData = {}
 
 GameData.current_scene_address = 0x02A8C0
 GameData.current_mission_address = 0x02A8FB
+GameData.global_timer_delta_address = 0x048378
 GameData.global_timer_address = 0x04837C
 GameData.global_timer_divided_by_four_address = 0x079E80
 GameData.mission_timer_address = 0x079A20
@@ -67,6 +68,10 @@ end
 
 function GameData.get_global_time()
 	return mainmemory.read_u32_be(GameData.global_timer_address)
+end
+
+function GameData.get_global_time_delta()
+	return mainmemory.readfloat(GameData.global_timer_delta_address, true)
 end
 
 function GameData.get_mission_time()

@@ -38,7 +38,7 @@ PlayerData.metadata =
 	{["offset"] = 0x224, ["size"] = 0x4, ["type"] = "float", 	["name"] = "pause_animation_counter"},
 	{["offset"] = 0x48C, ["size"] = 0xC, ["type"] = "vector", 	["name"] = "position"},
 	{["offset"] = 0x4B0, ["size"] = 0x4, ["type"] = "float", 	["name"] = "collision_radius"},
-	{["offset"] = 0x500, ["size"] = 0x4, ["type"] = "float",	["name"] = "ground_offset"},
+	{["offset"] = 0x4FC, ["size"] = 0xC, ["type"] = "vector", 	["name"] = "scaled_speed"},
 	{["offset"] = 0x520, ["size"] = 0xC, ["type"] = "vector", 	["name"] = "speed"},
 	{["offset"] = 0x550, ["size"] = 0x4, ["type"] = "float",	["name"] = "stationary_ground_offset"},
 	{["offset"] = 0xA80, ["size"] = 0x4, ["type"] = "float", 	["name"] = "noise"}
