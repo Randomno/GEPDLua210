@@ -36,6 +36,12 @@ function format_value(value, metadata)
 		return string.format("%s: %d", metadata.name, value)
 	elseif metadata.type == "float" then
 		return string.format("%s: %.4f", metadata.name, value)
+	elseif metadata.type == "vector" then
+		if (metadata.size == 0x0C) then
+			return string.format("%s: {%.4f, %.4f, %.4f}", metadata.name, value.x, value.y, value.z)
+		else
+			error("Unsupported vector size")		
+		end		
 	elseif metadata.type == "enum" then
 		local mnemonic = guard_data_mnemonics[metadata.name][value]
 		
@@ -45,7 +51,7 @@ function format_value(value, metadata)
 	
 		return string.format("%s: %s", metadata.name, mnemonic)		
 	else
-		error("invalid guard value type")
+		error("Invalid guard value type")
 	end
 end
 
@@ -62,7 +68,7 @@ function on_update_text(_slot)
 		local value = nil
 		
 		if not is_empty then
-			value = GuardData.get_value(slot_address, metadata.name)
+			value = GuardData:get_value(slot_address, metadata.name)
 		end
 		
 		local value_string = format_value(value, metadata)

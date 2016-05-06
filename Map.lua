@@ -216,6 +216,7 @@ function load_level_data()
 	level_data["Surface 1"] = parse_map_file("Maps/Surface 1.map")
 	level_data["Bunker 1"] = parse_map_file("Maps/Bunker 1.map")
 	level_data["Silo"] = parse_map_file("Maps/Silo.map")
+	level_data["Frigate"] = parse_map_file("Maps/Frigate.map")
 	level_data["Bunker 2"] = parse_map_file("Maps/Bunker 2.map")
 end
 
@@ -523,6 +524,7 @@ function get_target_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.target_inactive_alpha)
 end
 
+-- Rename speed to velocity?
 function draw_character(_position, _radius, _clipping_height, _view_angle, _speed, _id, _color, _alpha_function)
 	local screen_x, screen_y = level_to_screen(_position.x, _position.z)
 	local screen_radius = units_to_pixels(_radius)
