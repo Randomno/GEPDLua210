@@ -3,6 +3,8 @@ require "Data\\PlayerData"
 require "Utilities\\QuadTree"
 require "Utilities\\GuardDataReader"
 require "Utilities\\ObjectDataReader"
+require "Utilities\\ProjectileDataReader"
+require "Utilities\\ExplosionDataReader"
 
 local screen = {}
 
@@ -37,15 +39,27 @@ camera.switch_floor_key = "F"
 camera.zoom_in_key = "NumberPadPlus"
 camera.zoom_out_key = "NumberPadMinus"
 
+local character = {}
+
+character.view_cone_scale = 4.0
+character.target_circle_scale = 3.0
+
 local target = {}
 
 target.id = 0xFF
-target.scale = 3.0
 target.pick_radius = 5.0
 
-local view_cone = {}
+local projectile = {}
 
-view_cone.scale = 4.0
+projectile.radius = 8.0
+projectile.target_circle_scale = 3.0
+
+local explosion = {}
+
+explosion.shockwave_to_damage_interval_ratio = 0.25
+explosion.shockwave_alpha = 0.3
+explosion.max_damage_alpha = 0.8
+explosion.inactive_alpha_multiplier = 0.3
 
 function make_color(_r, _g, _b, _a)
 	local a_hex = bit.band(math.floor((_a * 255) + 0.5), 0xFF)
@@ -82,11 +96,19 @@ colors.guard_throwing_grenade = make_rgb(0.0, 0.5, 0.0)
 colors.guard_unloaded_alpha = make_alpha(0.3)
 colors.guard_inactive_unloaded_alpha = make_alpha(0.1)
 
-colors.map_default = make_rgb(1.0, 1.0, 1.0)
-colors.map_inactive_alpha = make_alpha(0.1)
+colors.level_default = make_rgb(1.0, 1.0, 1.0)
+colors.level_inactive_alpha = make_alpha(0.1)
 
 colors.object_default = make_rgb(1.0, 1.0, 1.0)
 colors.object_inactive_alpha = make_alpha(0.2)
+
+colors.projectile_default = make_rgb(0.6, 0.6, 0.6)
+colors.projectile_grenade = make_rgb(0.0, 0.6, 0.0)
+colors.projectile_remote_mine = make_rgb(0.8, 0.4, 0.4)
+colors.projectile_proximity_mine = make_rgb(0.4, 1.0, 0.4)
+colors.projectile_timed_mine = make_rgb(1.0, 1.0, 0.4)
+
+colors.explosion_default = make_rgb(1.0, 0.7, 0.0)
 
 colors.view_cone_default = make_rgb(1.0, 1.0, 1.0)
 colors.view_cone_default_alpha = make_alpha(0.2)
@@ -456,11 +478,66 @@ function draw_line(_line, _color, _alpha_function)
 	gui.drawLine(line.x1, line.y1, line.x2, line.y2, color)	
 end
 
-function get_map_alpha(_is_active)
-	return (_is_active and colors.default_alpha or colors.map_inactive_alpha)
+function draw_circle(_circle, _line_color, _background_color, _alpha_function)
+	local screen_x, screen_y = level_to_screen(_circle.x, _circle.z)
+	local screen_radius = units_to_pixels(_circle.radius)
+	local screen_diameter = (screen_radius * 2)
+	
+	local ellipse = {}
+	
+	ellipse.x = (screen_x - screen_radius)
+	ellipse.y = (screen_y - screen_radius)
+	ellipse.width = screen_diameter
+	ellipse.height = screen_diameter
+	
+	if ((ellipse.x < map.min_x) or
+		(ellipse.y < map.min_y) or
+		((ellipse.x + ellipse.width) > map.max_x) or
+		((ellipse.y + ellipse.height) > map.max_y)) then	
+		return
+	end
+			
+	local is_active = is_active_floor(_circle.y)		
+	local alpha = _alpha_function(is_active)	
+	
+	local line_color = (_line_color and (_line_color + alpha))
+	local background_color = (_background_color and (_background_color + alpha))	
+	
+	gui.drawEllipse(ellipse.x, ellipse.y, ellipse.width, ellipse.height, line_color, background_color)			
 end
 
-function draw_map()	
+function draw_cone(_cone, _color, _alpha_function)
+	local screen_x, screen_y = level_to_screen(_cone.x, _cone.z)
+	local screen_radius = units_to_pixels(_cone.radius)
+	local screen_diameter = (screen_radius * 2)
+
+	local pie = {}
+	
+	pie.x = (screen_x - screen_radius)
+	pie.y = (screen_y - screen_radius)
+	pie.width = screen_diameter
+	pie.height = screen_diameter
+	pie.start_angle = _cone.start_angle
+	pie.sweep_angle = _cone.sweep_angle
+	
+	if ((pie.x < map.min_x) or
+		(pie.y < map.min_y) or
+		((pie.x + pie.width) > map.max_x) or
+		((pie.y + pie.height) > map.max_y)) then	
+		return
+	end
+	
+	local is_active = is_active_floor(_cone.y)
+	local color = (_color + _alpha_function(is_active))
+
+	gui.drawPie(pie.x, pie.y, pie.width, pie.height, pie.start_angle, pie.sweep_angle, color, color)		
+end
+
+function get_level_alpha(_is_active)
+	return (_is_active and colors.default_alpha or colors.level_inactive_alpha)
+end
+
+function draw_level()	
 	local bounds = {}
 	local collisions = {}
 	
@@ -470,7 +547,7 @@ function draw_map()
 	level.quadtree:find_collisions(bounds, collisions)
 	
 	for key, edge in pairs(collisions) do		
-		draw_line(edge, colors.map_default, get_map_alpha)
+		draw_line(edge, colors.level_default, get_level_alpha)
 	end
 end
 
@@ -489,15 +566,14 @@ function draw_static_objects(_bounds)
 end
 
 function draw_dynamic_objects(_bounds)
-	for i = #objects.dynamic, 1, -1 do
-		local dynamic_object = objects.dynamic[i]		
-		local position = dynamic_object.data_reader:get_value("position")
+	for index, object in ipairs(objects.dynamic) do
+		local position = object.data_reader:get_value("position")
 		
-		if (((position.x + dynamic_object.bounding_radius) > _bounds.x1) and
-			((position.z + dynamic_object.bounding_radius) > _bounds.z1) and
-			((position.x - dynamic_object.bounding_radius) < _bounds.x2) and
-			((position.z - dynamic_object.bounding_radius) < _bounds.z2)) then
-			local edges = get_object_edges(dynamic_object.data_reader)
+		if (((position.x + object.bounding_radius) > _bounds.x1) and
+			((position.z + object.bounding_radius) > _bounds.z1) and
+			((position.x - object.bounding_radius) < _bounds.x2) and
+			((position.z - object.bounding_radius) < _bounds.z2)) then
+			local edges = get_object_edges(object.data_reader)
 			
 			for index, edge in ipairs(edges) do
 				draw_line(edge, colors.object_default, get_object_alpha)
@@ -516,6 +592,10 @@ function draw_objects()
 	draw_dynamic_objects(bounds)
 end
 
+function get_default_alpha(_is_active)
+	return (_is_active and colors.default_alpha or colors.inactive_alpha)
+end
+
 function get_view_cone_alpha(_is_active)
 	return (_is_active and colors.view_cone_default_alpha or colors.view_cone_inactive_alpha)
 end
@@ -524,49 +604,56 @@ function get_target_alpha(_is_active)
 	return (_is_active and colors.default_alpha or colors.target_inactive_alpha)
 end
 
--- Rename speed to velocity?
-function draw_character(_position, _radius, _clipping_height, _view_angle, _speed, _id, _color, _alpha_function)
-	local screen_x, screen_y = level_to_screen(_position.x, _position.z)
-	local screen_radius = units_to_pixels(_radius)
-	local screen_diameter = (screen_radius * 2)
+function draw_character(_position, _radius, _clipping_height, _view_angle, _velocity, _id, _color, _alpha_function)	
+	local character_circle = {}
+	
+	character_circle.x = _position.x
+	character_circle.y = _clipping_height
+	character_circle.z = _position.z
+	character_circle.radius = _radius
+	
+	draw_circle(character_circle, _color, _color, _alpha_function)
+	
+	if _view_angle then
+		local view_cone = {}
 		
-	if (((screen_x - screen_radius) > map.min_x) and
-		((screen_y - screen_radius) > map.min_y) and
-		((screen_x + screen_radius) < map.max_x) and
-		((screen_y + screen_radius) < map.max_y)) then	
-		local is_target = (target.id and (target.id == _id) or false)
-		local is_active = is_active_floor(_clipping_height)			
-		local color = (_color + _alpha_function(is_active))
+		view_cone.x = _position.x
+		view_cone.y = _clipping_height
+		view_cone.z = _position.z
+		view_cone.radius = (_radius * character.view_cone_scale)
+		view_cone.start_angle = (_view_angle - 45.0)
+		view_cone.sweep_angle = 90.0
 		
-		gui.drawEllipse((screen_x - screen_radius), (screen_y - screen_radius), screen_diameter, screen_diameter, color, color)	
-		
-		if _view_angle then
-			local view_cone_radius = (screen_radius * view_cone.scale)
-			local view_cone_diameter = (view_cone_radius * 2)
-			local view_cone_color = (colors.view_cone_default + get_view_cone_alpha(is_active))
+		draw_cone(view_cone, colors.view_cone_default, get_view_cone_alpha)
+	
+		if _velocity then
+			local view_angle_radians = math.rad(_view_angle)
+			local view_angle_cosine = math.cos(view_angle_radians)
+			local view_angle_sine = math.sin(view_angle_radians)
 			
-			gui.drawPie((screen_x - view_cone_radius), (screen_y - view_cone_radius), view_cone_diameter, view_cone_diameter, (_view_angle - 45), 90, view_cone_color, view_cone_color)
+			local velocity_line = {}
 			
-			if _speed then
-				local view_angle_radians = math.rad(_view_angle)
-				local view_angle_cosine = math.cos(view_angle_radians)
-				local view_angle_sine = math.sin(view_angle_radians)
+			velocity_line.x1 = _position.x
+			velocity_line.y1 = _clipping_height
+			velocity_line.z1 = _position.z
 			
-				local speed_x = units_to_pixels((view_angle_cosine * _speed.z) - (view_angle_sine * _speed.x))
-				local speed_y = units_to_pixels((view_angle_cosine * _speed.x) + (view_angle_sine * _speed.z))				
-				local speed_color = (colors.speed_default + _alpha_function(is_active))
-				
-				gui.drawLine(screen_x, screen_y, (screen_x + speed_x), (screen_y + speed_y), speed_color)
-			end		
-		end		
-		
-		if is_target then
-			local target_radius = (screen_radius * target.scale)
-			local target_diameter = (target_radius * 2)
-			local target_color = (colors.target_default + get_target_alpha(is_active))
-		
-			gui.drawEllipse((screen_x - target_radius), (screen_y - target_radius), target_diameter, target_diameter, target_color)
+			velocity_line.x2 = (_position.x + ((view_angle_cosine * _velocity.z) - (view_angle_sine * _velocity.x)))
+			velocity_line.y2 = _clipping_height
+			velocity_line.z2 = (_position.z + ((view_angle_cosine * _velocity.x) + (view_angle_sine * _velocity.z)))
+			
+			draw_line(velocity_line, colors.speed_default, _alpha_function)
 		end
+	end
+	
+	if (_id and (_id == target.id)) then
+		local target_circle = {}
+		
+		target_circle.x = _position.x
+		target_circle.y = _clipping_height
+		target_circle.z = _position.z
+		target_circle.radius = (_radius * character.target_circle_scale)
+		
+		draw_circle(target_circle, colors.target_default, nil, get_target_alpha)
 	end
 end
 
@@ -613,10 +700,6 @@ function check_loaded_state(_id, _position, _segment_info)
 	end	
 	
 	return loaded_state.is_loaded
-end
-
-function get_default_alpha(_is_active)
-	return (_is_active and colors.default_alpha or colors.inactive_alpha)
 end
 
 function get_unloaded_alpha(_is_active)
@@ -686,6 +769,7 @@ function draw_guard(_guard_data_reader)
 	draw_character(current_position, collision_radius, clipping_height, nil, nil, id, color, get_default_alpha)
 end
 
+-- TODO: for_each
 function draw_guards()
 	local guard_data_reader = GuardDataReader.create()
 
@@ -702,6 +786,114 @@ function draw_bond()
 	local speed = PlayerData.get_value("speed")
 	
 	draw_character(position, radius, clipping_height, view_angle, speed, 0xFF, colors.bond_default, get_default_alpha)		
+end
+
+function draw_projectile(_projectile_data_reader)
+	local image_to_color = 
+	{
+		[0xC4] = colors.projectile_grenade,
+		[0xC7] = colors.projectile_remote_mine,
+		[0xC8] = colors.projectile_proximity_mine,
+		[0xC9] = colors.projectile_timed_mine
+	}
+
+	local position = _projectile_data_reader:get_value("position")
+	local image = _projectile_data_reader:get_value("image")
+	
+	local projectile_circle = {}
+	
+	projectile_circle.x = position.x
+	projectile_circle.y = position.y
+	projectile_circle.z = position.z
+	projectile_circle.radius = projectile.radius
+	
+	local target_circle = {}
+	
+	target_circle.x = position.x
+	target_circle.y = position.y
+	target_circle.z = position.z
+	target_circle.radius = (projectile.radius * projectile.target_circle_scale)
+	
+	local projectile_color = (image_to_color[image] or colors.projectile_default)
+	local target_color = colors.target_default
+	
+	draw_circle(projectile_circle, projectile_color, projectile_color, get_default_alpha)	
+	draw_circle(target_circle, target_color, nil, get_target_alpha)
+end
+
+function draw_projectiles()
+	ProjectileDataReader.for_each(draw_projectile)
+end
+
+function draw_explosion(_explosion_data_reader)	
+	local position = _explosion_data_reader:get_position()
+	
+	local animation_frame = _explosion_data_reader:get_value("animation_frame")
+	local animation_length = _explosion_data_reader:get_type_value("animation_length")
+	
+	local min_damage_radius = _explosion_data_reader:get_type_value("min_damage_radius")
+	local max_damage_radius = _explosion_data_reader:get_type_value("max_damage_radius")
+	
+	local next_damage_frame = _explosion_data_reader:get_value("next_damage_frame")
+	
+	local damage_interval = (animation_length / 4)
+	local damage_alpha = explosion.shockwave_alpha
+	local damage_speed = ((max_damage_radius - min_damage_radius) / animation_length)	
+	local damage_radius = (min_damage_radius + (animation_frame * damage_speed))		
+	
+	local shockwave_length = (explosion.shockwave_to_damage_interval_ratio * damage_interval)
+	local fadeout_length = (damage_interval - shockwave_length)	
+	
+	if (animation_frame <= ExplosionData.no_damage_frame_count) then
+		damage_radius = (animation_frame * (damage_radius / ExplosionData.no_damage_frame_count))
+	else
+		local damage_frame = (animation_frame - (next_damage_frame - damage_interval))
+
+		if (next_damage_frame < animation_length) then
+			if (damage_frame > fadeout_length) then
+				local shockwave_frame = (damage_frame - fadeout_length)
+				local shockwave_speed = (damage_radius / shockwave_length)
+		
+				damage_radius = (shockwave_frame * shockwave_speed)
+			else			
+				damage_alpha = (explosion.max_damage_alpha * math.max((1.0 - (damage_frame / fadeout_length)), 0.0))
+			end
+		else				
+			damage_alpha = (explosion.max_damage_alpha * math.max((1.0 - (damage_frame / damage_interval)), 0.0))
+		end		
+	end
+					   
+	local screen_x, screen_y = level_to_screen(position.x, position.z)		
+	local screen_radius = units_to_pixels(damage_radius)
+	
+	if (((screen_x - screen_radius) > map.max_x) or
+		((screen_y - screen_radius) > map.max_y) or
+		((screen_x + screen_radius) < map.min_x) or
+		((screen_y + screen_radius) < map.min_y)) then
+		return
+	end
+	
+	local box = {}
+	
+	box.x1 = math.max((screen_x - screen_radius), map.min_x)
+	box.y1 = math.max((screen_y - screen_radius), map.min_y)
+	box.x2 = math.min((screen_x + screen_radius), map.max_x)
+	box.y2 = math.min((screen_y + screen_radius), map.max_y)
+					   
+	local color = make_rgb(1.0, damage_alpha, 0.0)
+	
+	if ((get_floor(position.y - damage_radius) > camera.floor) or
+		(get_floor(position.y + damage_radius) < camera.floor)) then
+		damage_alpha = (damage_alpha * explosion.inactive_alpha_multiplier)
+	end
+	
+	color = (color + make_alpha(damage_alpha))
+					   
+	gui.drawBox(box.x1, box.y1, box.x2, box.y2, color, color)
+end
+
+function draw_explosions()
+	ExplosionDataReader.for_each(draw_explosion)
 end
 
 function get_position_of_id(_id)
@@ -937,9 +1129,11 @@ function update_static_objects()
 	for i = count, 1, -1 do
 		local static_object = objects.static[i]
 		
+		-- Is this a door?
 		if (static_object.data_reader.current_data.type == 0x01) then
 			local state = static_object.data_reader:get_value("state")
 			
+			-- Is the door opening or closing?
 			if (state == 0x01) or (state == 0x02) then
 				load_dynamic_object(static_object.data_reader)
 
@@ -964,9 +1158,11 @@ function update_dynamic_objects()
 	for i = #objects.dynamic, 1, -1 do
 		local dynamic_object = objects.dynamic[i]
 		
+		-- Is this a door?
 		if (dynamic_object.data_reader.current_data.type == 0x01) then
 			local state = dynamic_object.data_reader:get_value("state")
 			
+			-- Is the door not opening or closing?
 			if (state ~= 0x01) and (state ~= 0x02) then			
 				load_static_object(dynamic_object.data_reader)
 				
@@ -1016,10 +1212,12 @@ function on_update()
 	update_camera()	
 	update_objects()
 	
-	draw_map()
+	draw_level()
 	draw_objects()
 	draw_guards()
 	draw_bond()
+	draw_projectiles()
+	draw_explosions()
 end
 
 load_level_data()

@@ -2,7 +2,7 @@ require "Data\\Data"
 
 GuardData = Data.create()
 
-GuardData.start_address_pointer = 0x02CC64
+GuardData.start_pointer_address = 0x02CC64
 GuardData.capacity_address = 0x2CC68
 GuardData.slot_size = 0x1DC
 GuardData.metadata =
@@ -55,7 +55,7 @@ function GuardData.get_slot_address(_slot)
 		return nil
 	end
 
-	local start_address = mainmemory.read_u32_be(GuardData.start_address_pointer)
+	local start_address = mainmemory.read_u32_be(GuardData.start_pointer_address)
 	
 	if (start_address == 0x00000000) then
 		return nil

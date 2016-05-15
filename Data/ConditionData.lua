@@ -64,11 +64,11 @@ DepositObjectData.metadata =
 {
 }
 
-local GetKeyAnalyzerData = Data.create()
+local AnalyzeKeyData = Data.create()
 
-GetKeyAnalyzerData.type = 0x22
-GetKeyAnalyzerData.size = 0x04
-GetKeyAnalyzerData.metadata = 
+AnalyzeKeyData.type = 0x22
+AnalyzeKeyData.size = 0x04
+AnalyzeKeyData.metadata = 
 {
 }
 
@@ -84,7 +84,7 @@ ConditionData.data_types =
 	[0x1E] = PhotographObjectData,
 	[0x20] = EnterRoomData,
 	[0x21] = DepositObjectData,
-	[0x22] = GetKeyAnalyzerData
+	[0x22] = AnalyzeKeyData
 }
 
 function ConditionData.get_type(_condition_address)

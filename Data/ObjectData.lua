@@ -1,6 +1,6 @@
 require "Data\\Data"
 
-local DoorData = Data.create()
+DoorData = Data.create()
 
 DoorData.type = 0x01
 DoorData.size = 0x80
@@ -21,7 +21,7 @@ DoorData.metadata =
 	{["offset"] = 0x7C, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "timer"}
 }
 
-local DoorThicknessData = Data.create()
+DoorThicknessData = Data.create()
 
 DoorThicknessData.type = 0x02
 DoorThicknessData.size = 0x08
@@ -29,7 +29,7 @@ DoorThicknessData.metadata =
 {
 }
 
-local PhysicalObjectData = Data.create()
+PhysicalObjectData = Data.create()
 
 PhysicalObjectData.type = 0x03
 PhysicalObjectData.size = 0x80
@@ -49,7 +49,7 @@ PhysicalObjectData.metadata =
 	{["offset"] = 0x7C, ["size"] = 0x04, ["type"] = "color",	["name"] = "target_color"}
 }
 
-local KeyData = Data.create()
+KeyData = Data.create()
 
 KeyData.type = 0x04
 KeyData.size = 0x04
@@ -57,13 +57,13 @@ KeyData.metadata =
 {
 }
 
-local AlarmData = Data.create()
+AlarmData = Data.create()
 
 AlarmData.type = 0x05
 AlarmData.size = 0x00
 AlarmData.metadata = nil
 
-local CameraData = Data.create()
+CameraData = Data.create()
 
 CameraData.type = 0x06
 CameraData.size = 0x6C
@@ -71,7 +71,7 @@ CameraData.metadata =
 {
 }
 
-local AmmoClipData = Data.create()
+AmmoClipData = Data.create()
 
 AmmoClipData.type = 0x07
 AmmoClipData.size = 0x04
@@ -79,7 +79,7 @@ AmmoClipData.metadata =
 {
 }
 
-local WeaponData = Data.create()
+WeaponData = Data.create()
 
 WeaponData.type = 0x08
 WeaponData.size = 0x08
@@ -87,7 +87,7 @@ WeaponData.metadata =
 {
 }
 
-local CharacterData = Data.create()
+CharacterData = Data.create()
 
 CharacterData.type = 0x09
 CharacterData.size = 0x1C
@@ -101,7 +101,7 @@ CharacterData.metadata =
 	{["offset"] = 0x18, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "guard_data_pointer"}	
 }
 
-local SingleScreenMonitorData = Data.create()
+SingleScreenMonitorData = Data.create()
 
 SingleScreenMonitorData.type = 0x0A
 SingleScreenMonitorData.size = 0x80
@@ -109,7 +109,7 @@ SingleScreenMonitorData.metadata =
 {
 }
 
-local MultiScreenMonitorData = Data.create()
+MultiScreenMonitorData = Data.create()
 
 MultiScreenMonitorData.type = 0x0B
 MultiScreenMonitorData.size = 0x1D4
@@ -117,13 +117,13 @@ MultiScreenMonitorData.metadata =
 {
 }
 
-local CeilingMonitorsData = Data.create()
+CeilingMonitorsData = Data.create()
 
 CeilingMonitorsData.type = 0x0C
 CeilingMonitorsData.size = 0x00
 CeilingMonitorsData.metadata = nil
 
-local DroneData = Data.create()
+DroneData = Data.create()
 
 DroneData.type = 0x0D
 DroneData.size = 0x58
@@ -131,7 +131,7 @@ DroneData.metadata =
 {
 }
 
-local CollectibleLinkData = Data.create()
+CollectibleLinkData = Data.create()
 
 CollectibleLinkData.type = 0x0E
 CollectibleLinkData.size = 0x0C
@@ -139,13 +139,13 @@ CollectibleLinkData.metadata =
 {
 }
 
-local HatData = Data.create()
+HatData = Data.create()
 
 HatData.type = 0x11
 HatData.size = 0x00
 HatData.metadata = nil
 
-local GrenadeProbabilityData = Data.create()
+GrenadeProbabilityData = Data.create()
 
 GrenadeProbabilityData.type = 0x12
 GrenadeProbabilityData.size = 0x0C
@@ -155,7 +155,7 @@ GrenadeProbabilityData.metadata =
 	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "probability"}
 }
 
-local ObjectLinkData = Data.create()
+ObjectLinkData = Data.create()
 
 ObjectLinkData.type = 0x13
 ObjectLinkData.size = 0x10
@@ -166,7 +166,7 @@ ObjectLinkData.metadata =
 	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "previous_object_link_data_pointer"}
 }
 
-local AmmoBoxData = Data.create()
+AmmoBoxData = Data.create()
 
 AmmoBoxData.type = 0x14
 AmmoBoxData.size = 0x34
@@ -174,7 +174,7 @@ AmmoBoxData.metadata =
 {
 }
 
-local BodyArmorData = Data.create()
+BodyArmorData = Data.create()
 
 BodyArmorData.type = 0x15
 BodyArmorData.size = 0x08
@@ -182,7 +182,7 @@ BodyArmorData.metadata =
 {
 }
 
-local TagData = Data.create()
+TagData = Data.create()
 
 TagData.type = 0x16
 TagData.size = 0x10
@@ -193,7 +193,7 @@ TagData.metadata =
 	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "tagged_object_pointer"}	
 }
 
-local ObjectiveData = Data.create()
+ObjectiveData = Data.create()
 
 ObjectiveData.type = 0x17
 ObjectiveData.size = nil
@@ -205,7 +205,7 @@ ObjectiveData.metadata =
 	{["offset"] = 0x10, ["size"] = nil, ["type"] = "list", 		["name"] = "condition_list"},
 }
 
-local BriefingData = Data.create()
+BriefingData = Data.create()
 
 BriefingData.type = 0x23
 BriefingData.size = 0x10
@@ -216,13 +216,13 @@ BriefingData.metadata =
 	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex",  	["name"] = "previous_briefing_data_pointer"}
 }
 
-local GasContainerData = Data.create()
+GasContainerData = Data.create()
 
 GasContainerData.type = 0x24
 GasContainerData.size = 0x00
 GasContainerData.metadata = nil
 
-local ItemInfoData = Data.create()
+ItemInfoData = Data.create()
 
 ItemInfoData.type = 0x25
 ItemInfoData.size = 0x28
@@ -236,18 +236,18 @@ ItemInfoData.metadata =
 	{["offset"] = 0x1C, ["size"] = 0x4, ["type"] = "hex",	["name"] = "interaction_text_preset"}	
 }
 
-local LockData = Data.create()
+LockData = Data.create()
 
 LockData.type = 0x26
 LockData.size = 0x10
 LockData.metadata =
 {
 	{["offset"] = 0x04, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "door_data_pointer"},
-	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "lock_object_data_pointer"},
+	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "object_data_pointer"},
 	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "previous_lock_data_pointer"}
 }
 
-local VehicleData = Data.create()
+VehicleData = Data.create()
 
 VehicleData.type = 0x27
 VehicleData.size = 0x30
@@ -255,7 +255,7 @@ VehicleData.metadata =
 {
 }
 
-local AircraftData = Data.create()
+AircraftData = Data.create()
 
 AircraftData.type = 0x28
 AircraftData.size = 0x34
@@ -263,19 +263,19 @@ AircraftData.metadata =
 {
 }
 
-local GlassData = Data.create()
+GlassData = Data.create()
 
 GlassData.type = 0x2A
 GlassData.size = 0x00
 GlassData.metadata = nil
 
-local SafeData = Data.create()
+SafeData = Data.create()
 
 SafeData.type = 0x2B
 SafeData.size = 0x00
 SafeData.metadata = nil
 
-local SafeObjectData = Data.create()
+SafeObjectData = Data.create()
 
 SafeObjectData.type = 0x2C
 SafeObjectData.size = 0x14
@@ -287,7 +287,7 @@ SafeObjectData.metadata =
 	{["offset"] = 0x10, ["size"] = 0x4, ["type"] = "hex", ["name"] = "previous_safe_object_data_pointer"}
 }
 
-local TankData = Data.create()
+TankData = Data.create()
 
 TankData.type = 0x2D
 TankData.size = 0x60
@@ -296,7 +296,7 @@ TankData.metadata =
 	{["offset"] = 0x58, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "shell_count"}
 }
 
-local ViewpointData = Data.create()
+ViewpointData = Data.create()
 
 ViewpointData.type = 0x2E
 ViewpointData.size = 0x1C
@@ -305,7 +305,7 @@ ViewpointData.metadata =
 	{["offset"] = 0x1A, ["size"] = 0x2, ["type"] = "hex", ["name"] = "preset"}
 }
 
-local TintedGlassData = Data.create()
+TintedGlassData = Data.create()
 
 TintedGlassData.type = 0x2F
 TintedGlassData.size = 0x14
@@ -339,7 +339,7 @@ TintedGlassData = 			PhysicalObjectData .. TintedGlassData
 
 ObjectData = {}
 
-ObjectData.start_address_pointer = 0x075D0C
+ObjectData.start_pointer_address = 0x075D0C
 ObjectData.data_types =
 {
 	[0x01] = DoorData,
@@ -378,7 +378,7 @@ ObjectData.data_types =
 }
 
 function ObjectData.get_start_address()	
-	return (mainmemory.read_u32_be(ObjectData.start_address_pointer) - 0x80000000)
+	return (mainmemory.read_u32_be(ObjectData.start_pointer_address) - 0x80000000)
 end
 
 function ObjectData.get_type(_object_address)

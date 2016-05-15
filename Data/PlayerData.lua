@@ -2,7 +2,7 @@ require "Data\\Data"
 
 PlayerData = Data.create()
 
-PlayerData.start_address_pointer = 0x079EE0
+PlayerData.start_pointer_address = 0x079EE0
 PlayerData.metadata = 
 {
 	{["offset"] = 0x074, ["size"] = 0x4, ["type"] = "float", 	["name"] = "clipping_height"},
@@ -45,7 +45,7 @@ PlayerData.metadata =
 }
 
 function PlayerData.get_start_address()
-	return (mainmemory.read_u32_be(PlayerData.start_address_pointer) - 0x80000000)
+	return (mainmemory.read_u32_be(PlayerData.start_pointer_address) - 0x80000000)
 end
 
 function PlayerData.get_value(_name)

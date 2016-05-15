@@ -31,7 +31,11 @@ function ObjectDataReader:reached_end()
 	return (not self.current_data and true or false)
 end
 
-function ObjectDataReader:next_object()	
+function ObjectDataReader:next_object()
+	if self:reached_end() then
+		return
+	end
+
 	if (self.current_data.type == 0x17) then
 		local condition_address = (self.current_address + self.current_data:get_metadata("condition_list").offset)
 		local condition_data = ConditionData.get_data(condition_address)

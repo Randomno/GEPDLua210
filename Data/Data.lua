@@ -10,15 +10,15 @@ function Data.create()
 end
 
 function Data.__concat(_lhs, _rhs)
-	local concat = Data.create()
+	local concatenation = Data.create()
 	
-	concat.type = _rhs.type
-	concat.size = (_lhs.size + _rhs.size)
-	concat.metadata = {}
+	concatenation.type = _rhs.type
+	concatenation.size = (_lhs.size + _rhs.size)
+	concatenation.metadata = {}
 	
 	if _lhs.metadata then
 		for index, metadata in ipairs(_lhs.metadata) do
-			table.insert(concat.metadata, metadata)
+			table.insert(concatenation.metadata, metadata)
 		end
 	end
 	
@@ -26,11 +26,11 @@ function Data.__concat(_lhs, _rhs)
 		for index, metadata in ipairs(_rhs.metadata) do
 			metadata.offset = (metadata.offset + _lhs.size)
 		
-			table.insert(concat.metadata, metadata)
+			table.insert(concatenation.metadata, metadata)
 		end
 	end
 	
-	return concat
+	return concatenation
 end
 
 
@@ -48,9 +48,9 @@ end
 
 local dimension_mnemonics = {"x", "y", "z", "w"}
 
-local function get_vector(_address, _metadata)
+local function read_vector(_address, _metadata)
 	local dimensions = (_metadata.size / 0x04)	
-	local vector = {}
+	local vector = {}	
 
 	for i = 1, dimensions, 1 do
 		local offset = (_metadata.offset + ((i - 1) * 0x04))
@@ -64,6 +64,7 @@ end
 function Data:get_value(_address, _name)
 	local metadata = self:get_metadata(_name)
 	
+	-- TODO: Throw error instead.
 	if not metadata then
 		return nil
 	end
@@ -79,7 +80,7 @@ function Data:get_value(_address, _name)
 			return mainmemory.read_u32_be(_address + metadata.offset)
 		end
 	elseif (metadata.type == "vector") then
-		return get_vector(_address, metadata)
+		return read_vector(_address, metadata)
 	else	
 		error("Invalid size value")
 	end

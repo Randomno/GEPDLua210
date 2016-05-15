@@ -58,7 +58,7 @@ function GuardDataReader:get_position()
 	return PositionData:get_value(position_data_address, "position")
 end
 
-local get_path_prefix = function(_is_path)
+local function get_path_prefix(_is_path)
 	return (_is_path and "path_" or "")
 end
 
