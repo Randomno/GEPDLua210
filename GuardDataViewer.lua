@@ -56,7 +56,7 @@ function format_value(value, metadata)
 end
 
 function on_update_text(_slot)
-	local slot_address = GuardData.get_slot_address(_slot)
+	local slot_address = (GuardData.get_start_address() + ((_slot - 1) * GuardData.size))
 	local slot_address_metadata = {["name"] = "slot_address", ["type"] = "hex"}
 	local slot_address_string = format_value(slot_address, slot_address_metadata)
 	

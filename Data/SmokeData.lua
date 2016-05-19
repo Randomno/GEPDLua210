@@ -3,7 +3,7 @@ require "Data\\Data"
 SmokeData = Data.create()
 
 SmokeData.start_pointer_address = 0x07A140
-SmokeData.slot_size = 0x198
+SmokeData.size = 0x198
 SmokeData.capacity = 20
 SmokeData.metadata = 
 {

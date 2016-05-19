@@ -34,7 +34,7 @@ end
 ExplosionData = Data.create()
 
 ExplosionData.start_pointer_address = 0x07A144
-ExplosionData.slot_size = 0x3E0
+ExplosionData.size = 0x3E0
 ExplosionData.capacity = 6
 ExplosionData.no_damage_frame_count = 8
 ExplosionData.metadata = 

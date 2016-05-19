@@ -4,7 +4,7 @@ GuardData = Data.create()
 
 GuardData.start_pointer_address = 0x02CC64
 GuardData.capacity_address = 0x2CC68
-GuardData.slot_size = 0x1DC
+GuardData.size = 0x1DC
 GuardData.metadata =
 {
 	{["offset"] = 0x001, ["size"] = 0x1, ["type"] = "hex", 		["name"] = "id"},
@@ -48,26 +48,10 @@ function GuardData.get_capacity()
 	return mainmemory.read_u32_be(GuardData.capacity_address)
 end
 
-function GuardData.get_slot_address(_slot)
-	_slot = (_slot or 1)
-	
-	if (_slot > GuardData.get_capacity()) then
-		return nil
-	end
-
-	local start_address = mainmemory.read_u32_be(GuardData.start_pointer_address)
-	
-	if (start_address == 0x00000000) then
-		return nil
-	end
-	
-	start_address = (start_address - 0x80000000)
-
-	return (start_address + ((_slot - 1) * GuardData.slot_size))
+function GuardData.get_start_address()
+	return (mainmemory.read_u32_be(GuardData.start_pointer_address) - 0x80000000)
 end
 
 function GuardData.is_empty(_slot_address)
-	local metadata = GuardData:get_metadata("model_data_pointer")
-
-	return (mainmemory.read_u8(_slot_address + metadata.offset) == 0x00)
+	return (mainmemory.read_u8(_slot_address + 0x1C) == 0x00)
 end

@@ -51,8 +51,6 @@ function ObjectDataReader:next_object()
 	end
 	
 	self.current_data = ObjectData.get_data(self.current_address)
-
-	return not self:reached_end()
 end
 
 function ObjectDataReader:get_value(_name)
@@ -80,4 +78,14 @@ function ObjectDataReader:get_collision_data()
 	local max_y = CollisionData:get_value(collision_data_address, "max_y")
 	
 	return points, min_y, max_y
+end
+
+function ObjectDataReader.for_each(_function)
+	local object_data_reader = ObjectDataReader.create()
+	
+	while not object_data_reader:reached_end() do
+		_function(object_data_reader)
+	
+		object_data_reader:next_object()
+	end
 end

@@ -25,7 +25,7 @@ function ExplosionDataReader:next_slot()
 		return
 	end
 
-	self.current_address = (self.current_address + ExplosionData.slot_size)
+	self.current_address = (self.current_address + ExplosionData.size)
 	self.current_slot = (self.current_slot + 1)
 	self.current_type = self:get_value("explosion_type")
 end
