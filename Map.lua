@@ -93,11 +93,13 @@ colors.default_alpha = make_alpha_pair(constants.default_alpha)
 colors.level_color = make_rgb(1.0, 1.0, 1.0)
 colors.object_color = make_rgb(1.0, 1.0, 1.0)
 
-colors.bond_color = make_rgb(0.0, 1.0, 1.0)
 colors.view_cone_color = make_rgb(1.0, 1.0, 1.0)
 colors.view_cone_alpha = make_alpha_pair(0.2)
 colors.velocity_color = make_rgb(0.2, 0.8, 0.4)
 colors.target_color = make_rgb(1.0, 0.0, 0.0)
+
+colors.bond_default_color = make_rgb(0.0, 1.0, 1.0)
+colors.bond_invincible_color = make_rgb(0.6, 1.0, 1.0)
 
 colors.guard_default_color = make_rgb(0.0, 1.0, 0.0)
 colors.guard_dying_color = make_rgb(0.5, 0.0, 0.0)
@@ -823,6 +825,9 @@ function draw_bond()
 	local clipping_height = PlayerData.get_value("clipping_height")
 	local azimuth_angle = PlayerData.get_value("azimuth_angle")
 	local velocity = PlayerData.get_value("velocity")
+	local invincibility_timer = PlayerData.get_value("invincibility_timer")	
+	
+	local is_invincible = (invincibility_timer ~= 0xFFFFFFFF)
 
 	local character = {}
 	
@@ -833,7 +838,7 @@ function draw_bond()
 	character.view_angle = (azimuth_angle + 90)
 	character.velocity = velocity
 	character.is_target = (target.type == "Bond")
-	character.color = colors.bond_color
+	character.color = (is_invincible and colors.bond_invincible_color or colors.bond_default_color)
 	
 	draw_character(character)		
 end

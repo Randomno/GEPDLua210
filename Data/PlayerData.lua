@@ -4,14 +4,16 @@ PlayerData = Data.create()
 
 PlayerData.start_pointer_address = 0x079EE0
 PlayerData.size = 0x2A80
+PlayerData.invincibility_length = 30
 PlayerData.metadata = 
 {
 	{["offset"] = 0x0074, ["size"] = 0x4, ["type"] = "float", 		["name"] = "clipping_height"},
 	{["offset"] = 0x00A0, ["size"] = 0x4, ["type"] = "float", 		["name"] = "ducking_height_offset"},
-	{["offset"] = 0x00A8, ["size"] = 0x4, ["type"] = "hex", 		["name"] = "position_data_pointer"},	
+	{["offset"] = 0x00A8, ["size"] = 0x4, ["type"] = "hex", 		["name"] = "position_data_pointer"},
 	{["offset"] = 0x00DC, ["size"] = 0x4, ["type"] = "float", 		["name"] = "current_health"},
 	{["offset"] = 0x00E4, ["size"] = 0x4, ["type"] = "float", 		["name"] = "previous_health"},
-	{["offset"] = 0x00F4, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "invincibility_frame_counter"},	
+	{["offset"] = 0x00F4, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "invincibility_timer"},	
+	{["offset"] = 0x00F8, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "health_bar_timer"},	
 	{["offset"] = 0x0118, ["size"] = 0x4, ["type"] = "boolean", 	["name"] = "look_ahead_flag"},
 	{["offset"] = 0x0124, ["size"] = 0x4, ["type"] = "boolean", 	["name"] = "aim_button_flag"},
 	{["offset"] = 0x0128, ["size"] = 0x4, ["type"] = "boolean", 	["name"] = "auto_aim_flag"},	
@@ -37,7 +39,11 @@ PlayerData.metadata =
 	{["offset"] = 0x0200, ["size"] = 0x4, ["type"] = "boolean", 	["name"] = "pausing_flag"},
 	{["offset"] = 0x0204, ["size"] = 0x4, ["type"] = "float", 		["name"] = "pause_starting_angle"},
 	{["offset"] = 0x020C, ["size"] = 0x4, ["type"] = "float", 		["name"] = "pause_target_angle"},
-	{["offset"] = 0x0224, ["size"] = 0x4, ["type"] = "float", 		["name"] = "pause_animation_counter"},
+	{["offset"] = 0x0224, ["size"] = 0x4, ["type"] = "float", 		["name"] = "pause_animation_counter"},	
+	{["offset"] = 0x03D3, ["size"] = 0x1, ["type"] = "unsigned", 	["name"] = "tint_red"},
+	{["offset"] = 0x03D7, ["size"] = 0x1, ["type"] = "unsigned", 	["name"] = "tint_green"},
+	{["offset"] = 0x03DB, ["size"] = 0x1, ["type"] = "unsigned", 	["name"] = "tint_blue"},
+	{["offset"] = 0x03DC, ["size"] = 0x4, ["type"] = "float", 		["name"] = "tint_alpha"},	
 	{["offset"] = 0x048C, ["size"] = 0xC, ["type"] = "vector", 		["name"] = "position"},
 	{["offset"] = 0x04B0, ["size"] = 0x4, ["type"] = "float", 		["name"] = "collision_radius"},
 	{["offset"] = 0x04FC, ["size"] = 0xC, ["type"] = "vector", 		["name"] = "scaled_velocity"},
