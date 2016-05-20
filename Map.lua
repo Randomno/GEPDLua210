@@ -30,7 +30,7 @@ camera.mode = 2
 camera.position_x = 0.0
 camera.position_z = 0.0
 camera.floor = 0
-camera.zoom = 4.0
+camera.zoom = 5.0
 camera.zoom_min = 1.0
 camera.zoom_max = 10.0
 camera.zoom_step = 0.5
@@ -46,6 +46,7 @@ target.data = nil
 
 local constants = {}
 
+constants.default_alpha = 0.6
 constants.inactive_alpha_factor = 0.3
 constants.view_cone_scale = 4.0
 constants.target_circle_scale = 3.0
@@ -87,7 +88,7 @@ end
 
 local colors = {}
 
-colors.default_alpha = make_alpha_pair(0.6)
+colors.default_alpha = make_alpha_pair(constants.default_alpha)
 
 colors.level_color = make_rgb(1.0, 1.0, 1.0)
 colors.object_color = make_rgb(1.0, 1.0, 1.0)
@@ -742,11 +743,15 @@ function draw_guard(_guard_data_reader)
 	local clipping_height = _guard_data_reader:get_value("clipping_height")		
 	local current_action = _guard_data_reader:get_value("current_action")
 	local color = (action_to_color[current_action] or colors.guard_default_color)
+	local alpha = colors.default_alpha
 	
 	local is_loaded = true
 	
+	-- Is the guard fading?
+	if (current_action == 0x05) then
+		alpha = make_alpha_pair(constants.default_alpha * (_guard_data_reader:get_value("alpha") / 255.0))
 	-- Is the guard moving?
-	if ((current_action == 0xF) or (current_action == 0xE)) then
+	elseif ((current_action == 0xF) or (current_action == 0xE)) then
 		local target_position = nil
 		local segment_coverage = nil
 		local segment_length = nil
@@ -792,7 +797,7 @@ function draw_guard(_guard_data_reader)
 		segment_line.color = color
 		segment_line.alpha = (not is_loaded and colors.guard_unloaded_alpha)
 		
-		draw_line(segment_line)
+		draw_line(segment_line)	
 	end
 	
 	local loaded_character = {}
@@ -803,6 +808,7 @@ function draw_guard(_guard_data_reader)
 	loaded_character.radius = collision_radius
 	loaded_character.is_target = ((target.type == "Guard") and (target.data == id))
 	loaded_character.color = color
+	loaded_character.alpha = alpha
 	
 	draw_character(loaded_character)
 end
