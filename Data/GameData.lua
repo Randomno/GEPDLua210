@@ -1,12 +1,12 @@
 GameData = {}
 
+GameData.random_number_generator_address = 0x024464
 GameData.current_scene_address = 0x02A8C0
 GameData.current_mission_address = 0x02A8FB
 GameData.global_timer_delta_address = 0x048378
 GameData.global_timer_address = 0x04837C
-GameData.global_timer_divided_by_four_address = 0x079E80
+GameData.mission_state_address = 0x0484C0 -- 0x0 = Not running, 0x1 = Running, 0x3 = Paused
 GameData.mission_timer_address = 0x079A20
-GameData.random_number_generator_address = 0x024464
 
 GameData.scene_index_to_name = 
 {
@@ -50,6 +50,10 @@ GameData.mission_index_to_name =
 	[0x1C] = "Egyptian"
 }
 
+function GameData.get_random_number_generator()
+	return mainmemory.read_u32_be(GameData.random_number_generator_address)
+end
+
 function GameData.get_current_scene()
 	return mainmemory.read_u32_be(GameData.current_scene_address)
 end
@@ -66,18 +70,18 @@ function GameData.get_mission_name(_mission)
 	return GameData.mission_index_to_name[_mission]
 end
 
-function GameData.get_global_time()
+function GameData.get_global_timer_delta()
+	return mainmemory.readfloat(GameData.global_timer_delta_address, true)
+end
+
+function GameData.get_global_timer()
 	return mainmemory.read_u32_be(GameData.global_timer_address)
 end
 
-function GameData.get_global_time_delta()
-	return mainmemory.readfloat(GameData.global_timer_delta_address, true)
+function GameData.get_mission_state()
+	return mainmemory.read_u32_be(GameData.mission_state_address)
 end
 
 function GameData.get_mission_time()
 	return mainmemory.read_u32_be(GameData.mission_timer_address)
-end
-
-function GameData.get_global_time_divided_by_four()
-	return mainmemory.readfloat(GameData.global_timer_divided_by_four_address, true)
 end

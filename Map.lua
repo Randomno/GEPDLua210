@@ -39,6 +39,11 @@ camera.switch_floor_key = "F"
 camera.zoom_in_key = "NumberPadPlus"
 camera.zoom_out_key = "NumberPadMinus"
 
+local mission = {}
+
+mission.index = 0xFF
+mission.name = nil
+
 local target = {}
 
 target.type = "Bond"
@@ -225,7 +230,7 @@ end
 local level_data = {}
 
 -- TODO: Use GameData.mission_index_to_name instead (when all maps are available)
-function load_level_data()
+function init_level_data()
 	level_data["Dam"] = parse_map_file("Maps/Dam.map")
 	level_data["Facility"] = parse_map_file("Maps/Facility.map")
 	level_data["Runway"] = parse_map_file("Maps/Runway.map")
@@ -402,10 +407,274 @@ function is_active_floor(_height)
 	return (get_floor(_height) == camera.floor)
 end
 
-function get_current_alpha(_alpha, _is_active)
-	local alpha = (_alpha or colors.default_alpha)
+function update_mission()
+	local current_mission = GameData.get_current_mission()
 	
-	return (_is_active and alpha.active or alpha.inactive)
+	if (current_mission ~= mission.index) then
+		mission.index = current_mission
+		mission.name = GameData.get_mission_name(mission.index)
+	
+		load_level(mission.name)
+		load_objects()
+	end
+end
+
+function pick_target(_x, _y)
+	local target_to_position_map = {}	
+
+	target_to_position_map[{["type"] = "Bond"}] = PlayerData.get_value("position")
+	
+	GuardDataReader.for_each(function(_guard_data_reader)
+		local id = _guard_data_reader:get_value("id")
+		local position = _guard_data_reader:get_position()
+		
+		target_to_position_map[{["type"] = "Guard", ["data"] = id}] = position
+	end)
+	
+	local targets_and_distances = {}
+	
+	for target, position in pairs(target_to_position_map) do
+		local distance = get_distance_2d(_x, _y, level_to_screen(position.x, position.z))
+		
+		table.insert(targets_and_distances, {["target"] = target, ["distance"] = distance})	
+	end
+
+	table.sort(targets_and_distances, (function(a, b) return (a.distance < b.distance) end))
+	
+	local closest_target_and_distance = targets_and_distances[1]
+	
+	if (closest_target_and_distance.distance > (constants.target_pick_radius * camera.zoom)) then
+		return {["type"] = "None"}
+	end
+	
+	return closest_target_and_distance.target
+end
+
+function on_mouse_button_down(_x, _y)
+	target = pick_target(_x, _y)
+end
+
+function on_mouse_button_up(_x, _y)
+end
+
+function on_mouse_drag(_diff_x, _diff_y)	
+	 if (camera.mode == 1) then
+		 camera.position_x = (camera.position_x - pixels_to_units(_diff_x))
+		 camera.position_z = (camera.position_z - pixels_to_units(_diff_y))
+		 
+		 camera.position_x = math.max(camera.position_x, level.bounds.min_x)
+		 camera.position_x = math.min(camera.position_x, level.bounds.max_x)
+		 camera.position_z = math.max(camera.position_z, level.bounds.min_z)
+		 camera.position_z = math.min(camera.position_z, level.bounds.max_z)
+	 end
+end
+
+local previous_mouse =  nil
+
+function update_mouse()
+	current_mouse = input.getmouse()
+	
+	if (previous_mouse) and (previous_mouse.Left) then	
+		if (current_mouse.Left) then
+			local diff_x = (current_mouse.X - previous_mouse.X)
+			local diff_y = (current_mouse.Y - previous_mouse.Y)
+		
+			on_mouse_drag(diff_x, diff_y)
+		else	
+			on_mouse_button_up(current_mouse.X, current_mouse.Y)							
+		end
+	elseif (current_mouse.Left) then
+		if (current_mouse.X >= 0) and
+			(current_mouse.Y >= 0) and
+			(current_mouse.X < screen.width) and
+			(current_mouse.Y < screen.height) then			
+			on_mouse_button_down(current_mouse.X, current_mouse.Y)
+		else
+			current_mouse.Left = false
+		end
+	end
+	
+	previous_mouse = current_mouse
+end
+
+function find_index(_array, _predicate)
+	for index = 1, #_array, 1 do
+		if _predicate(_array[index]) then
+			return index
+		end
+	end
+	
+	return nil
+end
+
+function on_switch_mode()
+	camera.mode = (math.mod(camera.mode, #camera.modes) + 1)
+end
+
+function on_switch_floor()
+	if (camera.mode == 1) then	
+		local index = find_index(level.floors, (function(floor) return (floor.number == camera.floor) end))
+	
+		camera.floor = level.floors[math.mod(index, #level.floors) + 1].number
+	end
+end
+
+function on_zoom_in()
+	camera.zoom = math.min((camera.zoom + camera.zoom_step), camera.zoom_max)
+end
+
+function on_zoom_out()
+	camera.zoom = math.max((camera.zoom - camera.zoom_step), camera.zoom_min)
+end
+
+function on_keyboard_button_down(key)
+	if (key == camera.switch_mode_key) then
+		on_switch_mode()
+	elseif (key == camera.switch_floor_key) then
+		on_switch_floor()
+	elseif (key == camera.zoom_in_key) then
+		on_zoom_in()
+	elseif (key == camera.zoom_out_key) then
+		on_zoom_out()
+	end
+end
+
+function on_keyboard_button_up(key)
+end
+
+local previous_keyboard = nil
+
+function update_keyboard()
+	local current_keyboard = input.get()
+	
+	if previous_keyboard then
+		for key, state in pairs(previous_keyboard) do
+			if not current_keyboard[key] then
+				on_keyboard_button_up(key)
+			end
+		end
+		
+		for key, state in pairs(current_keyboard) do
+			if not previous_keyboard[key] then
+				on_keyboard_button_down(key)
+			end
+		end
+	end	
+	
+	previous_keyboard = current_keyboard
+end
+
+function get_target_position()
+	local target_position = nil
+	local target_height = nil
+
+	if (target.type == "Bond") then
+		target_position = PlayerData.get_value("position")
+		target_height = PlayerData.get_value("clipping_height")
+	elseif (target.type == "Guard") then
+		GuardDataReader.for_each(function(_guard_data_reader)
+			if (_guard_data_reader:get_value("id") == target.data) then
+				target_position = _guard_data_reader:get_position()
+				target_height = _guard_data_reader:get_value("clipping_height")
+			end
+		end)
+	end
+	
+	if not target_position or not target_height then
+		return nil
+	end
+	
+	return {["x"] = target_position.x, ["y"] = target_height, ["z"] = target_position.z}
+end
+
+function update_camera()	
+	if (camera.mode == 2) then
+		local target_position = get_target_position()	
+		
+		if target_position then
+			camera.position_x = target_position.x
+			camera.position_z = target_position.z
+			
+			camera.floor = get_floor(target_position.y)
+		end
+	end
+	
+	local output_y = (screen.height - 19)
+	
+	gui.drawText(10, output_y, "Mode: " .. camera.modes[camera.mode])
+	gui.drawText(394, output_y, string.format("X: %d Z: %d", camera.position_x, camera.position_z))
+	gui.drawText((screen.width - 85), output_y, "Zoom: " .. camera.zoom .. "x")
+	
+	local floor_suffixes = {"%dst", "%dnd", "%drd", "%dth"}		
+	
+	local floor_number = ((camera.floor < 0) and math.abs(camera.floor) or (camera.floor + 1))
+	local floor_type = ((camera.floor < 0) and "basement" or "floor")	
+	local floor_suffix = floor_suffixes[math.min(math.mod(floor_number, 10), 4)]
+	local floor_string = string.format(floor_suffix .. " " .. floor_type, floor_number)
+	
+	gui.drawText(284, output_y, floor_string)
+	
+	local target_string = target.type
+	
+	if (target.type == "Guard") then
+		target_string = (target_string .. string.format(" (0x%X)", target.data))
+	end
+	
+	gui.drawText(120, output_y, "Target: " .. target_string)
+end
+
+function update_static_objects()
+	local count = #objects.static
+
+	for i = count, 1, -1 do
+		local static_object = objects.static[i]
+		
+		-- Is this a door?
+		if (static_object.data_reader.current_data.type == 0x01) then
+			local state = static_object.data_reader:get_value("state")
+			
+			-- Is the door opening or closing?
+			if (state == 0x01) or (state == 0x02) then
+				load_dynamic_object(static_object.data_reader)
+
+				table.remove(objects.static, i)
+			end
+		elseif not static_object.data_reader:check_flag("force_collisions") then
+			table.remove(objects.static, i)
+		end
+	end
+	
+	-- Rebuild quadtree (if needed)
+	if #objects.static ~= count then 
+		objects.quadtree = init_quadtree(level.bounds)
+	
+		for index, object in ipairs(objects.static) do
+			append_quadtree(objects.quadtree, object.edges)
+		end
+	end
+end
+
+function update_dynamic_objects()
+	for i = #objects.dynamic, 1, -1 do
+		local dynamic_object = objects.dynamic[i]
+		
+		-- Is this a door?
+		if (dynamic_object.data_reader.current_data.type == 0x01) then
+			local state = dynamic_object.data_reader:get_value("state")
+			
+			-- Is the door not opening or closing?
+			if (state ~= 0x01) and (state ~= 0x02) then			
+				load_static_object(dynamic_object.data_reader)
+				
+				table.remove(objects.dynamic, i)
+			end
+		end	
+	end
+end
+
+function update_objects()
+	update_static_objects()
+	update_dynamic_objects()
 end
 
 -- Liang-Barsky algorithm
@@ -449,6 +718,12 @@ function clip_line(_line, _bounds)
 	clipped_line.y2 = (_line.y1 + (t1 * diff_y))
 	
 	return clipped_line
+end
+
+function get_current_alpha(_alpha, _is_active)
+	local alpha = (_alpha or colors.default_alpha)
+	
+	return (_is_active and alpha.active or alpha.inactive)
 end
 
 function draw_line(_line)
@@ -940,290 +1215,25 @@ function draw_explosions()
 	ExplosionDataReader.for_each(draw_explosion)
 end
 
-function pick_target(_x, _y)
-	local target_to_position_map = {}	
-
-	target_to_position_map[{["type"] = "Bond"}] = PlayerData.get_value("position")
-	
-	GuardDataReader.for_each(function(_guard_data_reader)
-		local id = _guard_data_reader:get_value("id")
-		local position = _guard_data_reader:get_position()
-		
-		target_to_position_map[{["type"] = "Guard", ["data"] = id}] = position
-	end)
-	
-	local targets_and_distances = {}
-	
-	for target, position in pairs(target_to_position_map) do
-		local distance = get_distance_2d(_x, _y, level_to_screen(position.x, position.z))
-		
-		table.insert(targets_and_distances, {["target"] = target, ["distance"] = distance})	
-	end
-
-	table.sort(targets_and_distances, (function(a, b) return (a.distance < b.distance) end))
-	
-	local closest_target_and_distance = targets_and_distances[1]
-	
-	if (closest_target_and_distance.distance > (constants.target_pick_radius * camera.zoom)) then
-		return {["type"] = "None"}
-	end
-	
-	return closest_target_and_distance.target
-end
-
-function on_mouse_button_down(_x, _y)
-	target = pick_target(_x, _y)
-end
-
-function on_mouse_button_up(_x, _y)
-end
-
-function on_mouse_drag(_diff_x, _diff_y)	
-	 if (camera.mode == 1) then
-		 camera.position_x = (camera.position_x - pixels_to_units(_diff_x))
-		 camera.position_z = (camera.position_z - pixels_to_units(_diff_y))
-		 
-		 camera.position_x = math.max(camera.position_x, level.bounds.min_x)
-		 camera.position_x = math.min(camera.position_x, level.bounds.max_x)
-		 camera.position_z = math.max(camera.position_z, level.bounds.min_z)
-		 camera.position_z = math.min(camera.position_z, level.bounds.max_z)
-	 end
-end
-
-local previous_mouse =  nil
-
-function update_mouse()
-	current_mouse = input.getmouse()
-	
-	if (previous_mouse) and (previous_mouse.Left) then	
-		if (current_mouse.Left) then
-			local diff_x = (current_mouse.X - previous_mouse.X)
-			local diff_y = (current_mouse.Y - previous_mouse.Y)
-		
-			on_mouse_drag(diff_x, diff_y)
-		else	
-			on_mouse_button_up(current_mouse.X, current_mouse.Y)							
-		end
-	elseif (current_mouse.Left) then
-		if (current_mouse.X >= 0) and
-			(current_mouse.Y >= 0) and
-			(current_mouse.X < screen.width) and
-			(current_mouse.Y < screen.height) then			
-			on_mouse_button_down(current_mouse.X, current_mouse.Y)
-		else
-			current_mouse.Left = false
-		end
-	end
-	
-	previous_mouse = current_mouse
-end
-
-function find_index(_array, _predicate)
-	for index = 1, #_array, 1 do
-		if _predicate(_array[index]) then
-			return index
-		end
-	end
-	
-	return nil
-end
-
-function on_switch_mode()
-	camera.mode = (math.mod(camera.mode, #camera.modes) + 1)
-end
-
-function on_switch_floor()
-	if (camera.mode == 1) then	
-		local index = find_index(level.floors, (function(floor) return (floor.number == camera.floor) end))
-	
-		camera.floor = level.floors[math.mod(index, #level.floors) + 1].number
-	end
-end
-
-function on_zoom_in()
-	camera.zoom = math.min((camera.zoom + camera.zoom_step), camera.zoom_max)
-end
-
-function on_zoom_out()
-	camera.zoom = math.max((camera.zoom - camera.zoom_step), camera.zoom_min)
-end
-
-function on_keyboard_button_down(key)
-	if (key == camera.switch_mode_key) then
-		on_switch_mode()
-	elseif (key == camera.switch_floor_key) then
-		on_switch_floor()
-	elseif (key == camera.zoom_in_key) then
-		on_zoom_in()
-	elseif (key == camera.zoom_out_key) then
-		on_zoom_out()
-	end
-end
-
-function on_keyboard_button_up(key)
-end
-
-local previous_keyboard = nil
-
-function update_keyboard()
-	local current_keyboard = input.get()
-	
-	if previous_keyboard then
-		for key, state in pairs(previous_keyboard) do
-			if not current_keyboard[key] then
-				on_keyboard_button_up(key)
-			end
-		end
-		
-		for key, state in pairs(current_keyboard) do
-			if not previous_keyboard[key] then
-				on_keyboard_button_down(key)
-			end
-		end
-	end	
-	
-	previous_keyboard = current_keyboard
-end
-
-function get_target_position()
-	local target_position = nil
-	local target_height = nil
-
-	if (target.type == "Bond") then
-		target_position = PlayerData.get_value("position")
-		target_height = PlayerData.get_value("clipping_height")
-	elseif (target.type == "Guard") then
-		GuardDataReader.for_each(function(_guard_data_reader)
-			if (_guard_data_reader:get_value("id") == target.data) then
-				target_position = _guard_data_reader:get_position()
-				target_height = _guard_data_reader:get_value("clipping_height")
-			end
-		end)
-	end
-	
-	if not target_position or not target_height then
-		return nil
-	end
-	
-	return {["x"] = target_position.x, ["y"] = target_height, ["z"] = target_position.z}
-end
-
-function update_camera()	
-	if (camera.mode == 2) then
-		local target_position = get_target_position()	
-		
-		if target_position then
-			camera.position_x = target_position.x
-			camera.position_z = target_position.z
-			
-			camera.floor = get_floor(target_position.y)
-		end
-	end
-	
-	local output_y = (screen.height - 19)
-	
-	gui.drawText(10, output_y, "Mode: " .. camera.modes[camera.mode])
-	gui.drawText(394, output_y, string.format("X: %d Z: %d", camera.position_x, camera.position_z))
-	gui.drawText((screen.width - 85), output_y, "Zoom: " .. camera.zoom .. "x")
-	
-	local floor_suffixes = {"%dst", "%dnd", "%drd", "%dth"}		
-	
-	local floor_number = ((camera.floor < 0) and math.abs(camera.floor) or (camera.floor + 1))
-	local floor_type = ((camera.floor < 0) and "basement" or "floor")	
-	local floor_suffix = floor_suffixes[math.min(math.mod(floor_number, 10), 4)]
-	local floor_string = string.format(floor_suffix .. " " .. floor_type, floor_number)
-	
-	gui.drawText(284, output_y, floor_string)
-	
-	local target_string = target.type
-	
-	if (target.type == "Guard") then
-		target_string = (target_string .. string.format(" (0x%X)", target.data))
-	end
-	
-	gui.drawText(120, output_y, "Target: " .. target_string)
-end
-
-function update_static_objects()
-	local count = #objects.static
-
-	for i = count, 1, -1 do
-		local static_object = objects.static[i]
-		
-		-- Is this a door?
-		if (static_object.data_reader.current_data.type == 0x01) then
-			local state = static_object.data_reader:get_value("state")
-			
-			-- Is the door opening or closing?
-			if (state == 0x01) or (state == 0x02) then
-				load_dynamic_object(static_object.data_reader)
-
-				table.remove(objects.static, i)
-			end
-		elseif not static_object.data_reader:check_flag("force_collisions") then
-			table.remove(objects.static, i)
-		end
-	end
-	
-	-- Rebuild quadtree (if needed)
-	if #objects.static ~= count then 
-		objects.quadtree = init_quadtree(level.bounds)
-	
-		for index, object in ipairs(objects.static) do
-			append_quadtree(objects.quadtree, object.edges)
-		end
-	end
-end
-
-function update_dynamic_objects()
-	for i = #objects.dynamic, 1, -1 do
-		local dynamic_object = objects.dynamic[i]
-		
-		-- Is this a door?
-		if (dynamic_object.data_reader.current_data.type == 0x01) then
-			local state = dynamic_object.data_reader:get_value("state")
-			
-			-- Is the door not opening or closing?
-			if (state ~= 0x01) and (state ~= 0x02) then			
-				load_static_object(dynamic_object.data_reader)
-				
-				table.remove(objects.dynamic, i)
-			end
-		end	
-	end
-end
-
-function update_objects()
-	update_static_objects()
-	update_dynamic_objects()
+function is_safe_to_draw()
+	return ((GameData.get_mission_state() ~= 0) and 
+			(GameData.get_global_timer() ~= 0))
 end
 
 function on_load_state()
+	if not is_safe_to_draw() then
+		return
+	end	
+		
 	load_objects()
 end
 
-local previous_mission = 0xFF
-
 function on_update()
-	if (GameData.get_current_scene() ~= 0xB) then
+	if not is_safe_to_draw() then
 		return
-	end
-	
-	if (GameData.get_global_time_divided_by_four() == 0) then
-		return
-	end
-	
-	local current_mission = GameData.get_current_mission()
-	
-	if (current_mission ~= previous_mission) then	
-		local mission_name = GameData.get_mission_name(current_mission)
-	
-		load_level(mission_name)
-		load_objects()
-		
-		previous_mission = current_mission
 	end
 
+	update_mission()
 	update_mouse()
 	update_keyboard()
 	update_camera()	
@@ -1237,7 +1247,7 @@ function on_update()
 	draw_explosions()
 end
 
-load_level_data()
+init_level_data()
 
 event.onloadstate(on_load_state)
 event.onframeend(on_update)
