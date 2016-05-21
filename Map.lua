@@ -27,8 +27,7 @@ local camera = {}
 
 camera.modes = {"Manual", "Follow"}
 camera.mode = 2
-camera.position_x = 0.0
-camera.position_z = 0.0
+camera.position = {["x"] = 0.0, ["z"] = 0.0}
 camera.floor = 0
 camera.zoom = 5.0
 camera.zoom_min = 1.0
@@ -39,6 +38,15 @@ camera.switch_floor_key = "F"
 camera.zoom_in_key = "NumberPadPlus"
 camera.zoom_out_key = "NumberPadMinus"
 
+camera.output = {}
+
+camera.output.y = (screen.height - 19)
+camera.output.mode_x = 10
+camera.output.target_x = 120
+camera.output.floor_x = 284
+camera.output.position_x = 394
+camera.output.zoom_x = (screen.width - 85)
+
 local mission = {}
 
 mission.index = 0xFF
@@ -46,8 +54,11 @@ mission.name = nil
 
 local target = {}
 
-target.type = "Bond"
-target.data = nil
+target.type = "Player"
+target.name = "Bond"
+target.id = nil
+target.position = nil
+target.height = nil
 
 local constants = {}
 
@@ -123,20 +134,22 @@ function parse_scale()
 	return io.read("*n", "*l")
 end
 
-function parse_bounds(_scale)
-	local min_x, min_z, max_x, max_z = io.read("*n", "*n", "*n", "*n", "*l")
+function parse_bounds(_scale)	
+	local min_x, min_z, max_x, max_z = io.read("*n", "*n", "*n", "*n", "*l")	
 	
-	min_x = (min_x / _scale)
-	min_z = (min_z / _scale)
-	max_x = (max_x / _scale)
-	max_z = (max_z / _scale)
+	local bounds = {}
 	
-	return {["min_x"] = min_x, ["min_z"] = min_z, ["max_x"] = max_x, ["max_z"] = max_z}
+	bounds.min_x = (min_x / _scale)
+	bounds.min_z = (min_z / _scale)
+	bounds.max_x = (max_x / _scale)
+	bounds.max_z = (max_z / _scale)
+	
+	return bounds
 end
 
 function parse_floors(_scale)
 	local floors = {}
-	local start_number = io.read("*n")
+	local start_index = io.read("*n")
 	
 	for height in string.gmatch(io.read("*l"), "%S+") do	
 		-- Offset the floors by 1 unit to ensure characters end up above the floor
@@ -146,7 +159,7 @@ function parse_floors(_scale)
 	table.sort(floors, (function(a, b) return (a.height < b.height) end))
 
 	for index, floor in ipairs(floors) do
-		floor["number"] = (start_number + index - 1)
+		floor.index = (start_index + index - 1)
 	end
 	
 	return floors
@@ -155,21 +168,23 @@ end
 function parse_edges(_scale)
 	local edges = {}
 
-	while true do
+	while true do	
 		local x1, y1, z1, x2, y2, z2 = io.read("*n", "*n", "*n", "*n", "*n", "*n", "*l")
 		
 		if not x1 then
 			break
 		end
 		
-		x1 = (x1 / _scale)
-		y1 = (y1 / _scale)
-		z1 = (z1 / _scale)
-		x2 = (x2 / _scale)
-		y2 = (y2 / _scale)
-		z2 = (z2 / _scale)
+		local edge = {}
 		
-		table.insert(edges, {["x1"] = x1, ["y1"] = y1, ["z1"] = z1, ["x2"] = x2, ["y2"] = y2, ["z2"] = z2})
+		edge.x1 = (x1 / _scale)
+		edge.y1 = (y1 / _scale)
+		edge.z1 = (z1 / _scale)
+		edge.x2 = (x2 / _scale)
+		edge.y2 = (y2 / _scale)
+		edge.z2 = (z2 / _scale)
+		
+		table.insert(edges, edge)
 	end
 	
 	return edges
@@ -374,8 +389,8 @@ function pixels_to_units(_pixels)
 end
 
 function level_to_screen(_x, _z)
-	local diff_x = units_to_pixels(_x - camera.position_x)
-	local diff_z = units_to_pixels(_z - camera.position_z)
+	local diff_x = units_to_pixels(_x - camera.position.x)
+	local diff_z = units_to_pixels(_z - camera.position.z)
 	
 	local screen_x = (map.center_x + diff_x)
 	local screen_y = (map.center_y + diff_z)
@@ -387,8 +402,8 @@ function screen_to_level(_x, _y)
 	local diff_x = (_x - map.center_x)
 	local diff_y = (_y - map.center_y)
 	
-	local level_x = (pixels_to_units(diff_x) + camera.position_x)
-	local level_z = (pixels_to_units(diff_y) + camera.position_z)
+	local level_x = (pixels_to_units(diff_x) + camera.position.x)
+	local level_z = (pixels_to_units(diff_y) + camera.position.z)
 	
 	return level_x, level_z
 end
@@ -396,11 +411,11 @@ end
 function get_floor(_height)
 	for floor = 2, #level.floors, 1 do
 		if (_height < (level.floors[floor].height)) then
-			return level.floors[floor - 1].number
+			return (floor - 1)
 		end
 	end
 	
-	return level.floors[#level.floors].number
+	return #level.floors
 end
 
 function is_active_floor(_height)
@@ -422,13 +437,13 @@ end
 function pick_target(_x, _y)
 	local target_to_position_map = {}	
 
-	target_to_position_map[{["type"] = "Bond"}] = PlayerData.get_value("position")
+	target_to_position_map[{["type"] = "Player"}] = PlayerData.get_value("position")
 	
 	GuardDataReader.for_each(function(_guard_data_reader)
 		local id = _guard_data_reader:get_value("id")
 		local position = _guard_data_reader:get_position()
 		
-		target_to_position_map[{["type"] = "Guard", ["data"] = id}] = position
+		target_to_position_map[{["type"] = "Guard", ["id"] = id}] = position
 	end)
 	
 	local targets_and_distances = {}
@@ -444,7 +459,7 @@ function pick_target(_x, _y)
 	local closest_target_and_distance = targets_and_distances[1]
 	
 	if (closest_target_and_distance.distance > (constants.target_pick_radius * camera.zoom)) then
-		return {["type"] = "None"}
+		return {}
 	end
 	
 	return closest_target_and_distance.target
@@ -459,13 +474,13 @@ end
 
 function on_mouse_drag(_diff_x, _diff_y)	
 	 if (camera.mode == 1) then
-		 camera.position_x = (camera.position_x - pixels_to_units(_diff_x))
-		 camera.position_z = (camera.position_z - pixels_to_units(_diff_y))
+		 camera.position.x = (camera.position.x - pixels_to_units(_diff_x))
+		 camera.position.z = (camera.position.z - pixels_to_units(_diff_y))
 		 
-		 camera.position_x = math.max(camera.position_x, level.bounds.min_x)
-		 camera.position_x = math.min(camera.position_x, level.bounds.max_x)
-		 camera.position_z = math.max(camera.position_z, level.bounds.min_z)
-		 camera.position_z = math.min(camera.position_z, level.bounds.max_z)
+		 camera.position.x = math.max(camera.position.x, level.bounds.min_x)
+		 camera.position.x = math.min(camera.position.x, level.bounds.max_x)
+		 camera.position.z = math.max(camera.position.z, level.bounds.min_z)
+		 camera.position.z = math.min(camera.position.z, level.bounds.max_z)
 	 end
 end
 
@@ -497,25 +512,13 @@ function update_mouse()
 	previous_mouse = current_mouse
 end
 
-function find_index(_array, _predicate)
-	for index = 1, #_array, 1 do
-		if _predicate(_array[index]) then
-			return index
-		end
-	end
-	
-	return nil
-end
-
 function on_switch_mode()
 	camera.mode = (math.mod(camera.mode, #camera.modes) + 1)
 end
 
 function on_switch_floor()
-	if (camera.mode == 1) then	
-		local index = find_index(level.floors, (function(floor) return (floor.number == camera.floor) end))
-	
-		camera.floor = level.floors[math.mod(index, #level.floors) + 1].number
+	if (camera.mode == 1) then
+		camera.floor = (math.mod(camera.floor, #level.floors) + 1)
 	end
 end
 
@@ -564,63 +567,59 @@ function update_keyboard()
 	previous_keyboard = current_keyboard
 end
 
-function get_target_position()
-	local target_position = nil
-	local target_height = nil
-
-	if (target.type == "Bond") then
-		target_position = PlayerData.get_value("position")
-		target_height = PlayerData.get_value("clipping_height")
+function update_target()
+	if (target.type == "Player") then	
+		target.name = "Bond"
+		target.position = PlayerData.get_value("position")
+		target.height = PlayerData.get_value("clipping_height")
 	elseif (target.type == "Guard") then
+		target.name = "Guard"
 		GuardDataReader.for_each(function(_guard_data_reader)
-			if (_guard_data_reader:get_value("id") == target.data) then
-				target_position = _guard_data_reader:get_position()
-				target_height = _guard_data_reader:get_value("clipping_height")
+			if (_guard_data_reader:get_value("id") == target.id) then
+				target.position = _guard_data_reader:get_position()
+				target.height = _guard_data_reader:get_value("clipping_height")
 			end
 		end)
+	else
+		target.name = "None"
+		target.position = nil
+		target.height = nil
 	end
-	
-	if not target_position or not target_height then
-		return nil
-	end
-	
-	return {["x"] = target_position.x, ["y"] = target_height, ["z"] = target_position.z}
 end
 
-function update_camera()	
+function update_camera()
 	if (camera.mode == 2) then
-		local target_position = get_target_position()	
-		
-		if target_position then
-			camera.position_x = target_position.x
-			camera.position_z = target_position.z
-			
-			camera.floor = get_floor(target_position.y)
+		if target.position and target.height then
+			camera.position = target.position	
+			camera.floor = get_floor(target.height)
 		end
 	end
 	
-	local output_y = (screen.height - 19)
+	local target_string = nil
 	
-	gui.drawText(10, output_y, "Mode: " .. camera.modes[camera.mode])
-	gui.drawText(394, output_y, string.format("X: %d Z: %d", camera.position_x, camera.position_z))
-	gui.drawText((screen.width - 85), output_y, "Zoom: " .. camera.zoom .. "x")
+	if target.id then
+		target_string = string.format("Target: %s (0x%X)", target.name, target.id)
+	else
+		target_string = string.format("Target: %s", target.name)
+	end	
 	
-	local floor_suffixes = {"%dst", "%dnd", "%drd", "%dth"}		
+	local mode_string = string.format("Mode: %s", camera.modes[camera.mode])	
+	local position_string = string.format("X: %d Z: %d", camera.position.x, camera.position.z)
+	local zoom_string = string.format("Zoom: %.1fx", camera.zoom)	
 	
-	local floor_number = ((camera.floor < 0) and math.abs(camera.floor) or (camera.floor + 1))
-	local floor_type = ((camera.floor < 0) and "basement" or "floor")	
+	local floor_suffixes = {"%dst", "%dnd", "%drd", "%dth"}	
+	
+	local floor_index = level.floors[camera.floor].index	
+	local floor_number = ((floor_index < 0) and math.abs(floor_index) or (floor_index + 1))
+	local floor_type = ((floor_index < 0) and "basement" or "floor")	
 	local floor_suffix = floor_suffixes[math.min(math.mod(floor_number, 10), 4)]
-	local floor_string = string.format(floor_suffix .. " " .. floor_type, floor_number)
+	local floor_string = string.format(floor_suffix .. " " .. floor_type, floor_number)	
 	
-	gui.drawText(284, output_y, floor_string)
-	
-	local target_string = target.type
-	
-	if (target.type == "Guard") then
-		target_string = (target_string .. string.format(" (0x%X)", target.data))
-	end
-	
-	gui.drawText(120, output_y, "Target: " .. target_string)
+	gui.drawText(camera.output.mode_x, camera.output.y, mode_string)
+	gui.drawText(camera.output.target_x, camera.output.y, target_string)
+	gui.drawText(camera.output.floor_x, camera.output.y, floor_string)
+	gui.drawText(camera.output.position_x, camera.output.y, position_string)
+	gui.drawText(camera.output.zoom_x, camera.output.y, zoom_string)
 end
 
 function update_static_objects()
@@ -1083,7 +1082,7 @@ function draw_guard(_guard_data_reader)
 	loaded_character.y = clipping_height
 	loaded_character.z = position.z
 	loaded_character.radius = collision_radius
-	loaded_character.is_target = ((target.type == "Guard") and (target.data == id))
+	loaded_character.is_target = ((target.type == "Guard") and (target.id == id))
 	loaded_character.color = color
 	loaded_character.alpha = alpha
 	
@@ -1112,7 +1111,7 @@ function draw_bond()
 	character.radius = collision_radius
 	character.view_angle = (azimuth_angle + 90)
 	character.velocity = velocity
-	character.is_target = (target.type == "Bond")
+	character.is_target = (target.type == "Player")
 	character.color = (is_invincible and colors.bond_invincible_color or colors.bond_default_color)
 	
 	draw_character(character)		
@@ -1236,6 +1235,7 @@ function on_update()
 	update_mission()
 	update_mouse()
 	update_keyboard()
+	update_target()
 	update_camera()	
 	update_objects()
 	
