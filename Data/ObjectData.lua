@@ -151,7 +151,7 @@ GrenadeProbabilityData.type = 0x12
 GrenadeProbabilityData.size = 0x0C
 GrenadeProbabilityData.metadata =
 {
-	{["offset"] = 0x04, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "guard_id"},
+	{["offset"] = 0x04, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "id"},
 	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "probability"}
 }
 
@@ -163,7 +163,7 @@ ObjectLinkData.metadata =
 {
 	{["offset"] = 0x04, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "position_data_pointer_1"},	
 	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "position_data_pointer_2"},
-	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "previous_object_link_data_pointer"}
+	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "previous_entry_pointer"}
 }
 
 AmmoBoxData = Data.create()
@@ -189,7 +189,7 @@ TagData.size = 0x10
 TagData.metadata =
 {
 	{["offset"] = 0x04, ["size"] = 0x2, ["type"] = "hex", 	["name"] = "object_number"},
-	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "previous_tag_data_pointer"},
+	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "previous_entry_pointer"},
 	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "tagged_object_pointer"}	
 }
 
@@ -213,7 +213,7 @@ BriefingData.metadata =
 {
 	{["offset"] = 0x04, ["size"] = 0x4, ["type"] = "enum", 	["name"] = "briefing_type"},
 	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex",  	["name"] = "text_preset"},
-	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex",  	["name"] = "previous_briefing_data_pointer"}
+	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex",  	["name"] = "previous_entry_pointer"}
 }
 
 GasContainerData = Data.create()
@@ -244,7 +244,7 @@ LockData.metadata =
 {
 	{["offset"] = 0x04, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "door_data_pointer"},
 	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "object_data_pointer"},
-	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "previous_lock_data_pointer"}
+	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex", 	["name"] = "previous_entry_pointer"}
 }
 
 VehicleData = Data.create()
@@ -284,7 +284,7 @@ SafeObjectData.metadata =
 	{["offset"] = 0x04, ["size"] = 0x4, ["type"] = "hex", ["name"] = "object_pointer"},
 	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", ["name"] = "safe_pointer"},
 	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "hex", ["name"] = "door_pointer"},
-	{["offset"] = 0x10, ["size"] = 0x4, ["type"] = "hex", ["name"] = "previous_safe_object_data_pointer"}
+	{["offset"] = 0x10, ["size"] = 0x4, ["type"] = "hex", ["name"] = "previous_entry_pointer"}
 }
 
 TankData = Data.create()

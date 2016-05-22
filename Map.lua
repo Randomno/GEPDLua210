@@ -8,17 +8,20 @@ require "Utilities\\ExplosionDataReader"
 
 local screen = {}
 
-screen.width = client.screenwidth()
-screen.height = client.screenheight()
+-- This doesn't work for window sizes that are larger than the monitor size, because
+-- BizHawk silently rejects such cases. So window size may be set to e.g. 4x, while 
+-- the actual size remains 2x.
+screen.width = (client.bufferwidth() / client.getwindowsize())
+screen.height = (client.bufferheight() / client.getwindowsize())
 
 local map = {}
 
 map.center_x = (screen.width / 2)
 map.center_y = (screen.height / 2)
 map.width = screen.width
-map.height = screen.height - 40 -- IMPROVE?
-map.min_x = map.center_x - (map.width / 2)
-map.min_y = map.center_y - (map.height / 2)
+map.height = (screen.height - (screen.height / 12) - 1) -- Account for black borders
+map.min_x = (map.center_x - (map.width / 2))
+map.min_y = (map.center_y - (map.height / 2))
 map.max_x = (map.min_x + map.width)
 map.max_y = (map.min_y + map.height)
 map.units_per_pixel = 20.0
@@ -38,14 +41,19 @@ camera.switch_floor_key = "F"
 camera.zoom_in_key = "NumberPadPlus"
 camera.zoom_out_key = "NumberPadMinus"
 
-camera.output = {}
+local text = {}
 
-camera.output.y = (screen.height - 19)
-camera.output.mode_x = 10
-camera.output.target_x = 120
-camera.output.floor_x = 284
-camera.output.position_x = 394
-camera.output.zoom_x = (screen.width - 85)
+text.width = 7.5
+text.height = 15
+
+local output = {}
+
+output.x = map.min_x
+output.y = map.max_y
+output.border_width = 10
+output.border_height = 3
+output.horizontal_spacing = 15
+output.vertical_spacing = 2
 
 local mission = {}
 
@@ -116,6 +124,17 @@ colors.target_color = make_rgb(1.0, 0.0, 0.0)
 
 colors.bond_default_color = make_rgb(0.0, 1.0, 1.0)
 colors.bond_invincible_color = make_rgb(0.6, 1.0, 1.0)
+colors.natalya_default_color = make_rgb(0.40, 0.85, 0.90)
+colors.natalya_jungle_color = make_rgb(0.55, 0.65, 0.65)
+colors.boris_color = make_rgb(0.65, 0.35, 0.15)
+colors.ouromov_color = make_rgb(0.375, 0.325, 0.2)
+colors.trevelyan_006_color = make_rgb(0.1, 0.1, 0.15)
+colors.trevelyan_janus_color = make_rgb(0.15, 0.15, 0.15)
+colors.valentin_color = make_rgb(0.15, 0.2, 0.235)
+colors.xenia_color = make_rgb(0.2, 0.25, 0.25)
+colors.baron_samedi_color = make_rgb(0.95, 0.9, 0.85)
+colors.jaws_color = make_rgb(1.0, 1.0, 1.0)
+colors.scientist_color = make_rgb(1.0, 1.0, 1.0)	
 
 colors.guard_default_color = make_rgb(0.0, 1.0, 0.0)
 colors.guard_dying_color = make_rgb(0.5, 0.0, 0.0)
@@ -418,10 +437,6 @@ function get_floor(_height)
 	return #level.floors
 end
 
-function is_active_floor(_height)
-	return (get_floor(_height) == camera.floor)
-end
-
 function update_mission()
 	local current_mission = GameData.get_current_mission()
 	
@@ -568,14 +583,30 @@ function update_keyboard()
 end
 
 function update_target()
-	if (target.type == "Player") then	
+	-- TODO: Mishkin
+	local body_to_name = 
+	{
+		[0x06] = "Boris",
+		[0x07] = "Ouromov",
+		[0x08] = "Trevelyan",
+		[0x09] = "Trevelyan",
+		[0x0A] = "Valentin",
+		[0x0B] = "Xenia",
+		[0x0C] = "Baron Samedi",
+		[0x0D] = "Jaws",
+		[0x10] = "Natalya",
+		[0x23] = "Scientist",
+		[0x4F] = "Natalya"
+	}
+
+	if (target.type == "Player") then
 		target.name = "Bond"
 		target.position = PlayerData.get_value("position")
 		target.height = PlayerData.get_value("clipping_height")
 	elseif (target.type == "Guard") then
-		target.name = "Guard"
 		GuardDataReader.for_each(function(_guard_data_reader)
 			if (_guard_data_reader:get_value("id") == target.id) then
+				target.name = body_to_name[_guard_data_reader:get_value("body_model")] or "Guard"
 				target.position = _guard_data_reader:get_position()
 				target.height = _guard_data_reader:get_value("clipping_height")
 			end
@@ -594,32 +625,6 @@ function update_camera()
 			camera.floor = get_floor(target.height)
 		end
 	end
-	
-	local target_string = nil
-	
-	if target.id then
-		target_string = string.format("Target: %s (0x%X)", target.name, target.id)
-	else
-		target_string = string.format("Target: %s", target.name)
-	end	
-	
-	local mode_string = string.format("Mode: %s", camera.modes[camera.mode])	
-	local position_string = string.format("X: %d Z: %d", camera.position.x, camera.position.z)
-	local zoom_string = string.format("Zoom: %.1fx", camera.zoom)	
-	
-	local floor_suffixes = {"%dst", "%dnd", "%drd", "%dth"}	
-	
-	local floor_index = level.floors[camera.floor].index	
-	local floor_number = ((floor_index < 0) and math.abs(floor_index) or (floor_index + 1))
-	local floor_type = ((floor_index < 0) and "basement" or "floor")	
-	local floor_suffix = floor_suffixes[math.min(math.mod(floor_number, 10), 4)]
-	local floor_string = string.format(floor_suffix .. " " .. floor_type, floor_number)	
-	
-	gui.drawText(camera.output.mode_x, camera.output.y, mode_string)
-	gui.drawText(camera.output.target_x, camera.output.y, target_string)
-	gui.drawText(camera.output.floor_x, camera.output.y, floor_string)
-	gui.drawText(camera.output.position_x, camera.output.y, position_string)
-	gui.drawText(camera.output.zoom_x, camera.output.y, zoom_string)
 end
 
 function update_static_objects()
@@ -774,7 +779,7 @@ function draw_circle(_circle)
 		return
 	end
 			
-	local is_active = is_active_floor(_circle.y)	
+	local is_active = (get_floor(_circle.y) == camera.floor)	
 	local color = (_circle.color + get_current_alpha(_circle.alpha, is_active))
 	
 	if _circle.is_hollow then
@@ -805,7 +810,7 @@ function draw_cone(_cone)
 		return
 	end
 	
-	local is_active = is_active_floor(_cone.y)
+	local is_active = (get_floor(_cone.y) == camera.floor)
 	local color = (_cone.color + get_current_alpha(_cone.alpha, is_active))
 
 	gui.drawPie(pie.x, pie.y, pie.width, pie.height, pie.start_angle, pie.sweep_angle, color, color)		
@@ -840,6 +845,53 @@ function draw_rectangle(_rectangle)
 	local color = (_rectangle.color + get_current_alpha(_rectangle.alpha, is_active))
 	
 	gui.drawBox(box.x1, box.y1, box.x2, box.y2, color, color)
+end
+
+function draw_text(_text)	
+	local lines = {}
+	
+	local offset_x = _text.border_width
+	local offset_y = _text.border_height
+	
+	for index, fragment in ipairs(_text.fragments) do
+		local fragment_width = math.ceil(text.width * string.len(fragment))
+		
+		if (#lines == 0) then
+			table.insert(lines, {["y"] = offset_y, ["width"] = 0, ["fragments"] = {}})
+		elseif ((offset_x + fragment_width) > (_text.width - _text.border_width)) then
+			offset_x = _text.border_width
+			offset_y = (offset_y + text.height + _text.vertical_spacing)
+		
+			table.insert(lines, {["y"] = offset_y, ["width"] = 0, ["fragments"] = {}})
+		end
+
+		local line = lines[#lines]
+		
+		line.width = (line.width + fragment_width)
+		
+		table.insert(line.fragments, {["text"] = fragment, ["width"] = fragment_width})
+		
+		offset_x = (offset_x + fragment_width + _text.horizontal_spacing)
+	end
+	
+	local text_height = (#lines * text.height)
+	local text_spacing = ((#lines - 1) * _text.vertical_spacing)
+	local text_border = (_text.border_height * 2)	
+	local text_padding = ((text_height + text_spacing + text_border) - (screen.height - _text.y))
+	
+	client.SetGameExtraPadding(0, 0, 0, math.max(text_padding, 0))
+	
+	for index, line in ipairs(lines) do
+		local line_spacing = (((_text.width - (_text.border_width * 2)) - line.width) / #line.fragments)
+		
+		offset_x = _text.border_width
+		
+		for index, fragment in ipairs(line.fragments) do
+			gui.drawText((_text.x + offset_x), (_text.y + line.y), fragment.text)
+			
+			offset_x = (offset_x + fragment.width + line_spacing)
+		end
+	end
 end
 
 function draw_level()	
@@ -942,7 +994,6 @@ function draw_character(_character)
 		target_circle.z = _character.z
 		target_circle.radius = (_character.radius * constants.target_circle_scale)
 		target_circle.color = colors.target_color
-		target_circle.alpha = colors.target_alpha
 		target_circle.is_hollow = true
 		
 		draw_circle(target_circle)
@@ -1008,6 +1059,22 @@ function draw_guard(_guard_data_reader)
 		[0x14] = colors.guard_throwing_grenade_color
 	}
 	
+	-- TODO: Mishkin
+	local body_to_color = 
+	{
+		[0x06] = colors.boris_color,
+		[0x07] = colors.ouromov_color,
+		[0x08] = colors.trevelyan_default_color,
+		[0x09] = colors.trevelyan_facility_color,
+		[0x0A] = colors.valentin_color,
+		[0x0B] = colors.xenia_color,
+		[0x0C] = colors.baron_samedi_color,
+		[0x0D] = colors.jaws_color,
+		[0x10] = colors.natalya_default_color,
+		[0x23] = colors.scientist_color,
+		[0x4F] = colors.natalya_jungle_color		
+	}
+	
 	local id = _guard_data_reader:get_value("id")
 	
 	if (id == 0xFF) then
@@ -1018,8 +1085,10 @@ function draw_guard(_guard_data_reader)
 	local collision_radius = _guard_data_reader:get_value("collision_radius")
 	local clipping_height = _guard_data_reader:get_value("clipping_height")		
 	local current_action = _guard_data_reader:get_value("current_action")
-	local color = (action_to_color[current_action] or colors.guard_default_color)
-	local alpha = colors.default_alpha
+	local body_model = _guard_data_reader:get_value("body_model")
+	
+	local color = (action_to_color[current_action] or body_to_color[body_model] or colors.guard_default_color)
+	local alpha = colors.default_alpha	
 	
 	local is_loaded = true
 	
@@ -1064,12 +1133,10 @@ function draw_guard(_guard_data_reader)
 		
 		segment_line.x1 = position.x
 		segment_line.y1 = clipping_height
-		segment_line.z1 = position.z
-		
+		segment_line.z1 = position.z		
 		segment_line.x2 = target_position.x
 		segment_line.y2 = clipping_height
-		segment_line.z2 = target_position.z		
-		
+		segment_line.z2 = target_position.z				
 		segment_line.color = color
 		segment_line.alpha = (not is_loaded and colors.guard_unloaded_alpha)
 		
@@ -1084,7 +1151,7 @@ function draw_guard(_guard_data_reader)
 	loaded_character.radius = collision_radius
 	loaded_character.is_target = ((target.type == "Guard") and (target.id == id))
 	loaded_character.color = color
-	loaded_character.alpha = alpha
+	loaded_character.alpha = alpha	
 	
 	draw_character(loaded_character)
 end
@@ -1214,6 +1281,41 @@ function draw_explosions()
 	ExplosionDataReader.for_each(draw_explosion)
 end
 
+function draw_output()
+	local fragments = {}
+	
+	table.insert(fragments, string.format("Mode: %s", camera.modes[camera.mode]))
+	
+	if target.id then
+		table.insert(fragments, string.format("Target: %s (0x%X)", target.name, target.id))
+	else
+		table.insert(fragments, string.format("Target: %s", target.name))
+	end	
+	
+	local floor_suffixes = {"st", "nd", "rd", "th"}		
+	local floor_index = level.floors[camera.floor].index	
+	local floor_number = ((floor_index < 0) and math.abs(floor_index) or (floor_index + 1))
+	local floor_type = ((floor_index < 0) and "basement" or "floor")	
+	local floor_suffix = floor_suffixes[math.min(math.mod(floor_number, 10), 4)]
+	
+	table.insert(fragments, string.format("%d%s %s", floor_number, floor_suffix, floor_type))
+	table.insert(fragments, string.format("X: %d Z: %d", camera.position.x, camera.position.z))
+	table.insert(fragments, string.format("Zoom: %.1fx", camera.zoom))
+	
+	local text = {}
+	
+	text.x = map.min_x
+	text.y = map.max_y
+	text.width = map.width
+	text.border_width = output.border_width
+	text.border_height = output.border_height
+	text.horizontal_spacing = output.horizontal_spacing
+	text.vertical_spacing = output.vertical_spacing
+	text.fragments = fragments
+	
+	draw_text(text)
+end
+
 function is_safe_to_draw()
 	return ((GameData.get_mission_state() ~= 0) and 
 			(GameData.get_global_timer() ~= 0))
@@ -1245,6 +1347,7 @@ function on_update()
 	draw_bond()
 	draw_projectiles()
 	draw_explosions()
+	draw_output()
 end
 
 init_level_data()
