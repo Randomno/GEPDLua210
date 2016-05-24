@@ -26,6 +26,20 @@ map.max_x = (map.min_x + map.width)
 map.max_y = (map.min_y + map.height)
 map.units_per_pixel = 20.0
 
+local text = {}
+
+text.width = 7.5
+text.height = 15
+
+local output = {}
+
+output.x = map.min_x
+output.y = map.max_y
+output.border_width = 10
+output.border_height = 3
+output.horizontal_spacing = 15
+output.vertical_spacing = 2
+
 local camera = {}
 
 camera.modes = {"Manual", "Follow"}
@@ -40,20 +54,6 @@ camera.switch_mode_key = "M"
 camera.switch_floor_key = "F"
 camera.zoom_in_key = "NumberPadPlus"
 camera.zoom_out_key = "NumberPadMinus"
-
-local text = {}
-
-text.width = 7.5
-text.height = 15
-
-local output = {}
-
-output.x = map.min_x
-output.y = map.max_y
-output.border_width = 10
-output.border_height = 3
-output.horizontal_spacing = 15
-output.vertical_spacing = 2
 
 local mission = {}
 
@@ -73,6 +73,7 @@ local constants = {}
 constants.default_alpha = 0.6
 constants.inactive_alpha_factor = 0.3
 constants.view_cone_scale = 4.0
+constants.view_cone_angle = 90.0
 constants.target_circle_scale = 3.0
 constants.target_pick_radius = 5.0
 constants.projectile_radius = 8.0
@@ -117,26 +118,41 @@ colors.default_alpha = make_alpha_pair(constants.default_alpha)
 colors.level_color = make_rgb(1.0, 1.0, 1.0)
 colors.object_color = make_rgb(1.0, 1.0, 1.0)
 
-colors.view_cone_color = make_rgb(1.0, 1.0, 1.0)
-colors.view_cone_alpha = make_alpha_pair(0.2)
-colors.velocity_color = make_rgb(0.2, 0.8, 0.4)
+colors.entity_edge_color = make_rgb(0.0, 0.0, 0.0)
 colors.target_color = make_rgb(1.0, 0.0, 0.0)
 
 colors.bond_default_color = make_rgb(0.0, 1.0, 1.0)
 colors.bond_invincible_color = make_rgb(0.6, 1.0, 1.0)
-colors.natalya_default_color = make_rgb(0.40, 0.85, 0.90)
-colors.natalya_jungle_color = make_rgb(0.55, 0.65, 0.65)
+colors.view_cone_color = make_rgb(1.0, 1.0, 1.0)
+colors.view_cone_alpha = make_alpha_pair(0.2)
+colors.velocity_color = make_rgb(0.2, 0.8, 0.4)
+
 colors.boris_color = make_rgb(0.65, 0.35, 0.15)
 colors.ouromov_color = make_rgb(0.375, 0.325, 0.2)
-colors.trevelyan_006_color = make_rgb(0.1, 0.1, 0.15)
-colors.trevelyan_janus_color = make_rgb(0.15, 0.15, 0.15)
+colors.trevelyan_default_color = make_rgb(0.15, 0.15, 0.15)
+colors.trevelyan_facility_color = make_rgb(0.1, 0.1, 0.15)
 colors.valentin_color = make_rgb(0.15, 0.2, 0.235)
 colors.xenia_color = make_rgb(0.2, 0.25, 0.25)
 colors.baron_samedi_color = make_rgb(0.95, 0.9, 0.85)
 colors.jaws_color = make_rgb(1.0, 1.0, 1.0)
-colors.scientist_color = make_rgb(1.0, 1.0, 1.0)	
+colors.natalya_default_color = make_rgb(0.40, 0.85, 0.90)
+colors.natalya_jungle_color = make_rgb(0.55, 0.65, 0.65)
 
-colors.guard_default_color = make_rgb(0.0, 1.0, 0.0)
+colors.jungle_commando_color = make_rgb(0.24, 0.26, 0.1)
+colors.russian_soldier_color = make_rgb(0.25, 0.36, 0.14)
+colors.russian_infantry_color = make_rgb(0.55, 0.51, 0.33)
+colors.janus_special_forces_color = make_rgb(0.1, 0.11, 0.08)
+colors.janus_marine_color = make_rgb(0.38, 0.38, 0.38)
+colors.russian_commandant_color = make_rgb(0.6, 0.49, 0.25)
+colors.siberian_guard_1_color = make_rgb(0.09, 0.09, 0.09)
+colors.siberian_guard_2_color = make_rgb(0.28, 0.25, 0.22)	
+colors.hostage_color = make_rgb(0.125, 0.25, 0.1)
+colors.siberian_special_forces_color = make_rgb(0.57, 0.60, 0.64)
+colors.civilian_color = make_rgb(0.36, 0.19, 0.20)
+colors.scientist_color = make_rgb(1.0, 1.0, 1.0)	
+colors.arctic_commando_color = make_rgb(0.38, 0.48, 0.59)
+colors.moonraker_elite_color = make_rgb(0.65, 0.63, 0.24)
+
 colors.guard_dying_color = make_rgb(0.5, 0.0, 0.0)
 colors.guard_injured_color = make_rgb(1.0, 0.3, 0.3)
 colors.guard_shooting_color = make_rgb(1.0, 1.0, 0.0)
@@ -583,7 +599,6 @@ function update_keyboard()
 end
 
 function update_target()
-	-- TODO: Mishkin
 	local body_to_name = 
 	{
 		[0x06] = "Boris",
@@ -595,6 +610,8 @@ function update_target()
 		[0x0C] = "Baron Samedi",
 		[0x0D] = "Jaws",
 		[0x10] = "Natalya",
+		[0x14] = "Hostage",
+		[0x20] = "Civilian",
 		[0x23] = "Scientist",
 		[0x4F] = "Natalya"
 	}
@@ -779,14 +796,13 @@ function draw_circle(_circle)
 		return
 	end
 			
-	local is_active = (get_floor(_circle.y) == camera.floor)	
-	local color = (_circle.color + get_current_alpha(_circle.alpha, is_active))
+	local is_active = (get_floor(_circle.y) == camera.floor)
+	local alpha = get_current_alpha(_circle.alpha, is_active)
 	
-	if _circle.is_hollow then
-		gui.drawEllipse(ellipse.x, ellipse.y, ellipse.width, ellipse.height, color)	
-	else
-		gui.drawEllipse(ellipse.x, ellipse.y, ellipse.width, ellipse.height, color, color)		
-	end			
+	local inner_color = (_circle.inner_color and (_circle.inner_color + alpha) or nil)
+	local outer_color = (_circle.outer_color and (_circle.outer_color + alpha) or nil)
+	
+	gui.drawEllipse(ellipse.x, ellipse.y, ellipse.width, ellipse.height, outer_color, inner_color)			
 end
 
 function draw_cone(_cone)
@@ -945,56 +961,27 @@ function draw_objects()
 	draw_dynamic_objects(bounds)
 end
 
-function draw_character(_character)
-	draw_circle(_character)
+function draw_entity(_entity)
+	local entity_circle = {}
 	
-	if _character.view_angle then
-		local view_cone = {}
-		
-		view_cone.x = _character.x
-		view_cone.y = _character.y
-		view_cone.z = _character.z
-		view_cone.radius = (_character.radius * constants.view_cone_scale)
-		view_cone.start_angle = (_character.view_angle - 45.0)
-		view_cone.sweep_angle = 90.0
-		view_cone.color = colors.view_cone_color
-		view_cone.alpha = colors.view_cone_alpha
-		
-		draw_cone(view_cone)
+	entity_circle.x = _entity.x
+	entity_circle.y = _entity.y
+	entity_circle.z = _entity.z
+	entity_circle.radius = _entity.radius
+	entity_circle.inner_color = _entity.color
+	entity_circle.outer_color = colors.entity_edge_color
+	entity_circle.alpha = _entity.alpha
+
+	draw_circle(entity_circle)
 	
-		if _character.velocity then
-			local view_angle_radians = math.rad(_character.view_angle)
-			local view_angle_cosine = math.cos(view_angle_radians)
-			local view_angle_sine = math.sin(view_angle_radians)
-			
-			local velocity_x = ((view_angle_cosine * _character.velocity.z) - (view_angle_sine * _character.velocity.x))
-			local velocity_z = ((view_angle_cosine * _character.velocity.x) + (view_angle_sine * _character.velocity.z))
-			
-			local velocity_line = {}
-			
-			velocity_line.x1 = _character.x
-			velocity_line.y1 = _character.y
-			velocity_line.z1 = _character.z
-			
-			velocity_line.x2 = (_character.x + velocity_x)
-			velocity_line.y2 = _character.y
-			velocity_line.z2 = (_character.z + velocity_z)
-			
-			velocity_line.color = colors.velocity_color
-			
-			draw_line(velocity_line)
-		end
-	end
-	
-	if _character.is_target then
+	if _entity.is_target then
 		local target_circle = {}
 		
-		target_circle.x = _character.x
-		target_circle.y = _character.y
-		target_circle.z = _character.z
-		target_circle.radius = (_character.radius * constants.target_circle_scale)
-		target_circle.color = colors.target_color
-		target_circle.is_hollow = true
+		target_circle.x = _entity.x
+		target_circle.y = _entity.y
+		target_circle.z = _entity.z
+		target_circle.radius = (_entity.radius * constants.target_circle_scale)
+		target_circle.outer_color = colors.target_color
 		
 		draw_circle(target_circle)
 	end
@@ -1059,9 +1046,13 @@ function draw_guard(_guard_data_reader)
 		[0x14] = colors.guard_throwing_grenade_color
 	}
 	
-	-- TODO: Mishkin
 	local body_to_color = 
 	{
+		[0x00] = colors.jungle_commando_color,
+		[0x01] = colors.st_petersburg_guard_color,
+		[0x02] = colors.russian_soldier_color,
+		[0x03] = colors.russian_infantry_color,
+		[0x04] = colors.janus_special_forces_color,
 		[0x06] = colors.boris_color,
 		[0x07] = colors.ouromov_color,
 		[0x08] = colors.trevelyan_default_color,
@@ -1071,8 +1062,17 @@ function draw_guard(_guard_data_reader)
 		[0x0C] = colors.baron_samedi_color,
 		[0x0D] = colors.jaws_color,
 		[0x10] = colors.natalya_default_color,
+		[0x11] = colors.janus_marine_color,
+		[0x12] = colors.russian_commandant_color,
+		[0x13] = colors.siberian_guard_1_color,
+		[0x14] = colors.hostage_color,
+		[0x15] = colors.siberian_special_forces_color,
+		[0x20] = colors.civilian_color,
 		[0x23] = colors.scientist_color,
-		[0x4F] = colors.natalya_jungle_color		
+		[0x25] = colors.siberian_guard_2_color,
+		[0x26] = colors.arctic_commando_color,
+		[0x27] = colors.moonraker_elite_color,
+		[0x4F] = colors.natalya_jungle_color			
 	}
 	
 	local id = _guard_data_reader:get_value("id")
@@ -1087,7 +1087,7 @@ function draw_guard(_guard_data_reader)
 	local current_action = _guard_data_reader:get_value("current_action")
 	local body_model = _guard_data_reader:get_value("body_model")
 	
-	local color = (action_to_color[current_action] or body_to_color[body_model] or colors.guard_default_color)
+	local color = (action_to_color[current_action] or body_to_color[body_model])
 	local alpha = colors.default_alpha	
 	
 	local is_loaded = true
@@ -1117,16 +1117,16 @@ function draw_guard(_guard_data_reader)
 			local dir_x = ((target_position.x - position.x) / segment_length)
 			local dir_z = ((target_position.z - position.z) / segment_length)
 			
-			local unloaded_character = {}
+			local unloaded_entity = {}
 			
-			unloaded_character.x = (position.x + (dir_x * segment_coverage))
-			unloaded_character.y = clipping_height
-			unloaded_character.z = (position.z + (dir_z * segment_coverage))
-			unloaded_character.radius = collision_radius
-			unloaded_character.color = color
-			unloaded_character.alpha = colors.guard_unloaded_alpha
+			unloaded_entity.x = (position.x + (dir_x * segment_coverage))
+			unloaded_entity.y = clipping_height
+			unloaded_entity.z = (position.z + (dir_z * segment_coverage))
+			unloaded_entity.radius = collision_radius
+			unloaded_entity.color = color
+			unloaded_entity.alpha = colors.guard_unloaded_alpha
 			
-			draw_character(unloaded_character)
+			draw_entity(unloaded_entity)
 		end
 		
 		local segment_line = {}
@@ -1143,17 +1143,17 @@ function draw_guard(_guard_data_reader)
 		draw_line(segment_line)	
 	end
 	
-	local loaded_character = {}
+	local loaded_entity = {}
 	
-	loaded_character.x = position.x
-	loaded_character.y = clipping_height
-	loaded_character.z = position.z
-	loaded_character.radius = collision_radius
-	loaded_character.is_target = ((target.type == "Guard") and (target.id == id))
-	loaded_character.color = color
-	loaded_character.alpha = alpha	
+	loaded_entity.x = position.x
+	loaded_entity.y = clipping_height
+	loaded_entity.z = position.z
+	loaded_entity.radius = collision_radius
+	loaded_entity.is_target = ((target.type == "Guard") and (target.id == id))
+	loaded_entity.color = color
+	loaded_entity.alpha = alpha	
 	
-	draw_character(loaded_character)
+	draw_entity(loaded_entity)
 end
 
 function draw_guards()
@@ -1164,24 +1164,52 @@ function draw_bond()
 	local position = PlayerData.get_value("position")
 	local collision_radius = PlayerData.get_value("collision_radius")
 	local clipping_height = PlayerData.get_value("clipping_height")
-	local azimuth_angle = PlayerData.get_value("azimuth_angle")
+	local view_angle = (PlayerData.get_value("azimuth_angle") + 90)
 	local velocity = PlayerData.get_value("velocity")
-	local invincibility_timer = PlayerData.get_value("invincibility_timer")	
+	local is_invincible = (PlayerData.get_value("invincibility_timer") ~= 0xFFFFFFFF)
 	
-	local is_invincible = (invincibility_timer ~= 0xFFFFFFFF)
-
-	local character = {}
+	local entity = {}
 	
-	character.x = position.x
-	character.y = clipping_height
-	character.z = position.z
-	character.radius = collision_radius
-	character.view_angle = (azimuth_angle + 90)
-	character.velocity = velocity
-	character.is_target = (target.type == "Player")
-	character.color = (is_invincible and colors.bond_invincible_color or colors.bond_default_color)
+	entity.x = position.x
+	entity.y = clipping_height
+	entity.z = position.z
+	entity.radius = collision_radius
+	entity.is_target = (target.type == "Player")
+	entity.color = (is_invincible and colors.bond_invincible_color or colors.bond_default_color)
 	
-	draw_character(character)		
+	draw_entity(entity)
+	
+	local view_cone = {}
+	
+	view_cone.x = position.x
+	view_cone.y = clipping_height
+	view_cone.z = position.z
+	view_cone.radius = (collision_radius * constants.view_cone_scale)
+	view_cone.start_angle = (view_angle - (constants.view_cone_angle / 2))
+	view_cone.sweep_angle = constants.view_cone_angle
+	view_cone.color = colors.view_cone_color
+	view_cone.alpha = colors.view_cone_alpha
+	
+	draw_cone(view_cone)
+	
+	local view_angle_radians = math.rad(view_angle)
+	local view_angle_cosine = math.cos(view_angle_radians)
+	local view_angle_sine = math.sin(view_angle_radians)
+	
+	local velocity_x = ((view_angle_cosine * velocity.z) - (view_angle_sine * velocity.x))
+	local velocity_z = ((view_angle_cosine * velocity.x) + (view_angle_sine * velocity.z))
+	
+	local velocity_line = {}
+	
+	velocity_line.x1 = position.x
+	velocity_line.y1 = clipping_height
+	velocity_line.z1 = position.z	
+	velocity_line.x2 = (position.x + velocity_x)
+	velocity_line.y2 = clipping_height
+	velocity_line.z2 = (position.z + velocity_z)	
+	velocity_line.color = colors.velocity_color
+	
+	draw_line(velocity_line)
 end
 
 function draw_projectile(_projectile_data_reader)
@@ -1196,27 +1224,16 @@ function draw_projectile(_projectile_data_reader)
 	local position = _projectile_data_reader:get_value("position")
 	local image = _projectile_data_reader:get_value("image")
 	
-	local projectile_circle = {}
+	local entity = {}
 	
-	projectile_circle.x = position.x
-	projectile_circle.y = position.y
-	projectile_circle.z = position.z
-	projectile_circle.radius = constants.projectile_radius
-	projectile_circle.color = (image_to_color[image] or colors.projectile_default_color)
+	entity.x = position.x
+	entity.y = position.y
+	entity.z = position.z
+	entity.radius = constants.projectile_radius
+	entity.color = (image_to_color[image] or colors.projectile_default_color)
+	entity.is_target = true
 	
-	draw_circle(projectile_circle)	
-	
-	local target_circle = {}
-	
-	target_circle.x = position.x
-	target_circle.y = position.y
-	target_circle.z = position.z
-	target_circle.radius = (constants.projectile_radius * constants.target_circle_scale)
-	target_circle.color = colors.target_color
-	target_circle.alpha = colors.target_alpha
-	target_circle.is_hollow = true
-	
-	draw_circle(target_circle)
+	draw_entity(entity)
 end
 
 function draw_projectiles()
