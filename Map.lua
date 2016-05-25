@@ -1,6 +1,7 @@
 require "Data\\GameData"
 require "Data\\PlayerData"
 require "Utilities\\QuadTree"
+require "Utilities\\IntroDataReader"
 require "Utilities\\GuardDataReader"
 require "Utilities\\ObjectDataReader"
 require "Utilities\\ProjectileDataReader"
@@ -70,8 +71,8 @@ target.height = nil
 
 local constants = {}
 
-constants.default_alpha = 0.6
-constants.inactive_alpha_factor = 0.3
+constants.default_alpha = 0.7
+constants.inactive_alpha_factor = 0.25
 constants.view_cone_scale = 4.0
 constants.view_cone_angle = 90.0
 constants.target_circle_scale = 3.0
@@ -119,24 +120,26 @@ colors.level_color = make_rgb(1.0, 1.0, 1.0)
 colors.object_color = make_rgb(1.0, 1.0, 1.0)
 
 colors.entity_edge_color = make_rgb(0.0, 0.0, 0.0)
-colors.target_color = make_rgb(1.0, 0.0, 0.0)
-
-colors.bond_default_color = make_rgb(0.0, 1.0, 1.0)
-colors.bond_invincible_color = make_rgb(0.6, 1.0, 1.0)
+colors.target_circle_color = make_rgb(1.0, 0.0, 0.0)
 colors.view_cone_color = make_rgb(1.0, 1.0, 1.0)
 colors.view_cone_alpha = make_alpha_pair(0.2)
-colors.velocity_color = make_rgb(0.2, 0.8, 0.4)
+colors.velocity_line_color = make_rgb(0.2, 0.8, 0.4)
 
+colors.bond_stealth_color = make_rgb(0.085, 0.1, 0.14)
+colors.bond_fatigues_color = make_rgb(0.27, 0.27, 0.1)
+colors.bond_parka_color = make_rgb(0.68, 0.70, 0.75)
+colors.bond_dress_suit_color = make_rgb(0.2, 0.2, 0.32)
+colors.bond_tuxedo_color = make_rgb(0.09, 0.09, 0.09)
+colors.natalya_skirt_color = make_rgb(0.40, 0.85, 0.90)
+colors.natalya_fatigues_color = make_rgb(0.55, 0.65, 0.65)
+colors.trevelyan_shirt_color = make_rgb(0.15, 0.15, 0.15)
+colors.trevelyan_stealth_color = make_rgb(0.1, 0.1, 0.15)
 colors.boris_color = make_rgb(0.65, 0.35, 0.15)
 colors.ouromov_color = make_rgb(0.375, 0.325, 0.2)
-colors.trevelyan_default_color = make_rgb(0.15, 0.15, 0.15)
-colors.trevelyan_facility_color = make_rgb(0.1, 0.1, 0.15)
 colors.valentin_color = make_rgb(0.15, 0.2, 0.235)
 colors.xenia_color = make_rgb(0.2, 0.25, 0.25)
 colors.baron_samedi_color = make_rgb(0.95, 0.9, 0.85)
 colors.jaws_color = make_rgb(1.0, 1.0, 1.0)
-colors.natalya_default_color = make_rgb(0.40, 0.85, 0.90)
-colors.natalya_jungle_color = make_rgb(0.55, 0.65, 0.65)
 
 colors.jungle_commando_color = make_rgb(0.24, 0.26, 0.1)
 colors.russian_soldier_color = make_rgb(0.25, 0.36, 0.14)
@@ -981,7 +984,7 @@ function draw_entity(_entity)
 		target_circle.y = _entity.y
 		target_circle.z = _entity.z
 		target_circle.radius = (_entity.radius * constants.target_circle_scale)
-		target_circle.outer_color = colors.target_color
+		target_circle.outer_color = colors.target_circle_color
 		
 		draw_circle(target_circle)
 	end
@@ -1055,13 +1058,13 @@ function draw_guard(_guard_data_reader)
 		[0x04] = colors.janus_special_forces_color,
 		[0x06] = colors.boris_color,
 		[0x07] = colors.ouromov_color,
-		[0x08] = colors.trevelyan_default_color,
-		[0x09] = colors.trevelyan_facility_color,
+		[0x08] = colors.trevelyan_shirt_color,
+		[0x09] = colors.trevelyan_stealth_color,
 		[0x0A] = colors.valentin_color,
 		[0x0B] = colors.xenia_color,
 		[0x0C] = colors.baron_samedi_color,
 		[0x0D] = colors.jaws_color,
-		[0x10] = colors.natalya_default_color,
+		[0x10] = colors.natalya_skirt_color,
 		[0x11] = colors.janus_marine_color,
 		[0x12] = colors.russian_commandant_color,
 		[0x13] = colors.siberian_guard_1_color,
@@ -1072,7 +1075,7 @@ function draw_guard(_guard_data_reader)
 		[0x25] = colors.siberian_guard_2_color,
 		[0x26] = colors.arctic_commando_color,
 		[0x27] = colors.moonraker_elite_color,
-		[0x4F] = colors.natalya_jungle_color			
+		[0x4F] = colors.natalya_fatigues_color			
 	}
 	
 	local id = _guard_data_reader:get_value("id")
@@ -1160,24 +1163,31 @@ function draw_guards()
 	GuardDataReader.for_each(draw_guard)
 end
 
-function draw_bond()	
+function draw_bond()
+	local outfit_to_color =
+	{
+		[0x00] = colors.bond_dress_suit_color,
+		[0x02] = colors.bond_fatigues_color,
+		[0x03] = colors.bond_stealth_color,
+		[0x04] = colors.bond_parka_color,
+		[0x08] = colors.bond_tuxedo_color
+	}
+	
 	local position = PlayerData.get_value("position")
 	local collision_radius = PlayerData.get_value("collision_radius")
 	local clipping_height = PlayerData.get_value("clipping_height")
 	local view_angle = (PlayerData.get_value("azimuth_angle") + 90)
 	local velocity = PlayerData.get_value("velocity")
-	local is_invincible = (PlayerData.get_value("invincibility_timer") ~= 0xFFFFFFFF)
 	
-	local entity = {}
+	local color = nil
 	
-	entity.x = position.x
-	entity.y = clipping_height
-	entity.z = position.z
-	entity.radius = collision_radius
-	entity.is_target = (target.type == "Player")
-	entity.color = (is_invincible and colors.bond_invincible_color or colors.bond_default_color)
-	
-	draw_entity(entity)
+	IntroDataReader.for_each(function(_intro_data_reader) 
+		if (_intro_data_reader.current_data.type == 0x05) then
+			local outfit = _intro_data_reader:get_value("outfit")
+		
+			color = outfit_to_color[outfit]
+		end
+	end)
 	
 	local view_cone = {}
 	
@@ -1207,9 +1217,20 @@ function draw_bond()
 	velocity_line.x2 = (position.x + velocity_x)
 	velocity_line.y2 = clipping_height
 	velocity_line.z2 = (position.z + velocity_z)	
-	velocity_line.color = colors.velocity_color
+	velocity_line.color = colors.velocity_line_color
 	
 	draw_line(velocity_line)
+	
+	local entity = {}
+	
+	entity.x = position.x
+	entity.y = clipping_height
+	entity.z = position.z
+	entity.radius = collision_radius
+	entity.is_target = (target.type == "Player")	
+	entity.color = color	
+	
+	draw_entity(entity)
 end
 
 function draw_projectile(_projectile_data_reader)
