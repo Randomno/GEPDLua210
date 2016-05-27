@@ -32,6 +32,10 @@ function GuardDataReader:is_empty()
 	return GuardData.is_empty(self.current_address)
 end
 
+function GuardDataReader:is_clone()
+	return GuardData.is_clone(self.current_address)
+end
+
 function GuardDataReader:get_value(_name)
 	return GuardData:get_value(self.current_address, _name)
 end

@@ -8,7 +8,7 @@ GuardData.size = 0x1DC
 GuardData.fadeout_length = 90
 GuardData.metadata =
 {
-	{["offset"] = 0x001, ["size"] = 0x1, ["type"] = "hex", 		["name"] = "id"},
+	{["offset"] = 0x000, ["size"] = 0x2, ["type"] = "hex", 		["name"] = "id"},
 	{["offset"] = 0x004, ["size"] = 0x1, ["type"] = "unsigned", ["name"] = "rounds_fired_left"},
 	{["offset"] = 0x005, ["size"] = 0x1, ["type"] = "unsigned", ["name"] = "rounds_fired_right"},
 	{["offset"] = 0x006, ["size"] = 0x1, ["type"] = "hex", 		["name"] = "head_model"},	-- 0xFF = Special character (Natalya, Trevelyan etc...)
@@ -56,4 +56,8 @@ end
 
 function GuardData.is_empty(_slot_address)
 	return (mainmemory.read_u8(_slot_address + 0x1C) == 0x00)
+end
+
+function GuardData.is_clone(_slot_address)
+	return (mainmemory.read_u8(_slot_address) == 0x27)
 end

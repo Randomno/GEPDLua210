@@ -46,7 +46,7 @@ local camera = {}
 camera.modes = {"Manual", "Follow"}
 camera.mode = 2
 camera.position = {["x"] = 0.0, ["z"] = 0.0}
-camera.floor = 0
+camera.floor = 1
 camera.zoom = 5.0
 camera.zoom_min = 1.0
 camera.zoom_max = 10.0
@@ -77,6 +77,8 @@ constants.view_cone_scale = 4.0
 constants.view_cone_angle = 90.0
 constants.target_circle_scale = 3.0
 constants.target_pick_radius = 5.0
+constants.min_guard_displacement = 0.1
+constants.max_guard_displacement = 20.0
 constants.projectile_radius = 8.0
 constants.shockwave_to_damage_interval_ratio = 0.25
 constants.shockwave_intensity = 0.3
@@ -109,7 +111,7 @@ function make_inactive_alpha(_a)
 end
 
 function make_alpha_pair(_a)
-	return {["active"] = make_alpha(_a), ["inactive"] = make_inactive_alpha(_a)}
+	return {active = make_alpha(_a), inactive = make_inactive_alpha(_a)}
 end
 
 local colors = {}
@@ -147,9 +149,9 @@ colors.russian_infantry_color = make_rgb(0.55, 0.51, 0.33)
 colors.janus_special_forces_color = make_rgb(0.1, 0.11, 0.08)
 colors.janus_marine_color = make_rgb(0.38, 0.38, 0.38)
 colors.russian_commandant_color = make_rgb(0.6, 0.49, 0.25)
-colors.siberian_guard_1_color = make_rgb(0.09, 0.09, 0.09)
-colors.siberian_guard_2_color = make_rgb(0.28, 0.25, 0.22)	
-colors.hostage_color = make_rgb(0.125, 0.25, 0.1)
+colors.siberian_guard_a_color = make_rgb(0.09, 0.09, 0.09)
+colors.siberian_guard_b_color = make_rgb(0.28, 0.25, 0.22)	
+colors.naval_officer_color = make_rgb(0.125, 0.25, 0.1)
 colors.siberian_special_forces_color = make_rgb(0.57, 0.60, 0.64)
 colors.civilian_color = make_rgb(0.36, 0.19, 0.20)
 colors.scientist_color = make_rgb(1.0, 1.0, 1.0)	
@@ -247,13 +249,13 @@ function parse_map_file(_filename)
 		end
 			
 		if (group == "[Scale]") then
-			output["scale"] = parse_scale()
+			output.scale = parse_scale()
 		elseif (group == "[Bounds]") then
-			output["bounds"] = parse_bounds(output["scale"])
+			output.bounds = parse_bounds(output.scale)
 		elseif (group == "[Floors]") then
-			output["floors"] = parse_floors(output["scale"])
+			output.floors = parse_floors(output.scale)
 		elseif (group == "[Edges]") then
-			output["edges"] = parse_edges(output["scale"])
+			output.edges = parse_edges(output.scale)
 		else
 			error("Invalid group type: " .. group)
 		end
@@ -319,10 +321,10 @@ function get_distance_2d(_x1, _y1, _x2, _y2)
 	return math.sqrt((diff_x * diff_x) + (diff_y * diff_y))
 end
 
-function get_distance_3d(_x1, _y1, _z1, _x2, _y2, _z2)
-	local diff_x = (_x1 - _x2)
-	local diff_y = (_y1 - _y2)
-	local diff_z = (_z1 - _z2)
+function get_distance_3d(_p1, _p2)
+	local diff_x = (_p1.x - _p2.x)
+	local diff_y = (_p1.y - _p2.y)
+	local diff_z = (_p1.z - _p2.z)
 	
 	return math.sqrt((diff_x * diff_x) + (diff_y * diff_y) + (diff_z * diff_z))
 end
@@ -447,13 +449,41 @@ function screen_to_level(_x, _y)
 end
 
 function get_floor(_height)
-	for floor = 2, #level.floors, 1 do
-		if (_height < (level.floors[floor].height)) then
-			return (floor - 1)
+	for i = 2, #level.floors, 1 do
+		if (_height < (level.floors[i].height)) then
+			return (i - 1)
 		end
 	end
 	
 	return #level.floors
+end
+
+local default_camera = {}
+
+default_camera.mode = camera.mode
+default_camera.position = {["x"] = camera.position.x, ["z"] = camera.position.z}
+default_camera.floor = camera.floor
+default_camera.zoom = camera.zoom
+
+function reset_camera()
+	camera.mode = default_camera.mode
+	camera.position = default_camera.position
+	camera.floor = default_camera.floor
+	camera.zoom = default_camera.zoom
+end
+
+local default_target = {}
+
+default_target.type = target.type
+default_target.id = target.id
+
+function reset_target()
+	target.type = default_target.type
+	target.id = default_target.id
+end
+
+function reset_guards()
+	guard_states = {}
 end
 
 function update_mission()
@@ -465,6 +495,10 @@ function update_mission()
 	
 		load_level(mission.name)
 		load_objects()
+		
+		reset_camera()
+		reset_target()
+		reset_guards()
 	end
 end
 
@@ -618,7 +652,7 @@ function update_target()
 		[0x23] = "Scientist",
 		[0x4F] = "Natalya"
 	}
-
+	
 	if (target.type == "Player") then
 		target.name = "Bond"
 		target.position = PlayerData.get_value("position")
@@ -626,7 +660,7 @@ function update_target()
 	elseif (target.type == "Guard") then
 		GuardDataReader.for_each(function(_guard_data_reader)
 			if (_guard_data_reader:get_value("id") == target.id) then
-				target.name = body_to_name[_guard_data_reader:get_value("body_model")] or "Guard"
+				target.name = (body_to_name[_guard_data_reader:get_value("body_model")] or (_guard_data_reader:is_clone() and "Clone" or "Guard"))			
 				target.position = _guard_data_reader:get_position()
 				target.height = _guard_data_reader:get_value("clipping_height")
 			end
@@ -658,7 +692,7 @@ function update_static_objects()
 			local state = static_object.data_reader:get_value("state")
 			
 			-- Is the door opening or closing?
-			if (state == 0x01) or (state == 0x02) then
+			if ((state == 0x01) or (state == 0x02)) then
 				load_dynamic_object(static_object.data_reader)
 
 				table.remove(objects.static, i)
@@ -699,6 +733,68 @@ end
 function update_objects()
 	update_static_objects()
 	update_dynamic_objects()
+end
+
+local guard_states = {}
+
+function update_guard(_guard_data_reader)
+	local current_state = {}
+		
+	current_state.action = _guard_data_reader:get_value("current_action")	
+	current_state.position = _guard_data_reader:get_position()
+	
+	if (current_state.action == 0x0E) then
+		current_state.target_position = _guard_data_reader:get_value("path_target_position")
+		current_state.segment_coverage = _guard_data_reader:get_value("path_segment_coverage")
+		current_state.segment_length = _guard_data_reader:get_value("path_segment_length")
+	elseif (current_state.action == 0x0F) then
+		current_state.target_position = _guard_data_reader:get_value("target_position")
+		current_state.segment_coverage = _guard_data_reader:get_value("segment_coverage")
+		current_state.segment_length = _guard_data_reader:get_value("segment_length")
+	end
+	
+	current_state.is_moving = ((current_state.action == 0x0E) or (current_state.action == 0x0F))
+	current_state.is_fading = (current_state.action == 0x05)
+	current_state.is_loaded = true
+	
+	local id = _guard_data_reader:get_value("id")
+	
+	if current_state.is_moving then
+		local previous_state = guard_states[id]
+		
+		if previous_state and previous_state.is_moving then	
+			local displacement = 0.0
+			
+			if previous_state.is_loaded then
+				if ((current_state.segment_coverage ~= previous_state.segment_coverage) or
+					(current_state.segment_length ~= previous_state.segment_length)) then
+					if ((current_state.segment_coverage >= 0.0) and
+						(current_state.segment_coverage <= current_state.segment_length)) then
+						displacement = (current_state.segment_coverage - previous_state.segment_coverage)
+					end
+				end
+			else
+				if ((current_state.position.x ~= previous_state.position.x) or
+					(current_state.position.y ~= previous_state.position.y) or
+					(current_state.position.z ~= previous_state.position.z)) then
+					displacement = get_distance_3d(current_state.position, previous_state.position)
+				end
+			end	
+				
+			if ((displacement < constants.min_guard_displacement) or
+				(displacement > constants.max_guard_displacement)) then
+				current_state.is_loaded = previous_state.is_loaded
+			else
+				current_state.is_loaded = not previous_state.is_loaded
+			end
+		end
+	end
+	
+	guard_states[id] = current_state 
+end
+
+function update_guards()
+	GuardDataReader.for_each(update_guard)
 end
 
 -- Liang-Barsky algorithm
@@ -873,24 +969,20 @@ function draw_text(_text)
 	local offset_y = _text.border_height
 	
 	for index, fragment in ipairs(_text.fragments) do
-		local fragment_width = math.ceil(text.width * string.len(fragment))
+		local width = math.ceil(text.width * string.len(fragment))
 		
 		if (#lines == 0) then
-			table.insert(lines, {["y"] = offset_y, ["width"] = 0, ["fragments"] = {}})
-		elseif ((offset_x + fragment_width) > (_text.width - _text.border_width)) then
+			table.insert(lines, {["y"] = offset_y, ["fragments"] = {}})
+		elseif ((offset_x + width) > (_text.width - _text.border_width)) then
 			offset_x = _text.border_width
 			offset_y = (offset_y + text.height + _text.vertical_spacing)
 		
-			table.insert(lines, {["y"] = offset_y, ["width"] = 0, ["fragments"] = {}})
+			table.insert(lines, {["y"] = offset_y, ["fragments"] = {}})
 		end
-
-		local line = lines[#lines]
 		
-		line.width = (line.width + fragment_width)
+		table.insert(lines[#lines].fragments, {["text"] = fragment, ["width"] = width})
 		
-		table.insert(line.fragments, {["text"] = fragment, ["width"] = fragment_width})
-		
-		offset_x = (offset_x + fragment_width + _text.horizontal_spacing)
+		offset_x = (offset_x + width + _text.horizontal_spacing)		
 	end
 	
 	local text_height = (#lines * text.height)
@@ -900,15 +992,19 @@ function draw_text(_text)
 	
 	client.SetGameExtraPadding(0, 0, 0, math.max(text_padding, 0))
 	
-	for index, line in ipairs(lines) do
-		local line_spacing = (((_text.width - (_text.border_width * 2)) - line.width) / #line.fragments)
+	for index, line in ipairs(lines) do	
+		for index, fragment in ipairs(line.fragments) do
+			line.width = ((line.width or 0) + fragment.width)
+		end	
+	
+		line.spacing = (((_text.width - (_text.border_width * 2)) - line.width) / #line.fragments)
 		
 		offset_x = _text.border_width
 		
 		for index, fragment in ipairs(line.fragments) do
 			gui.drawText((_text.x + offset_x), (_text.y + line.y), fragment.text)
 			
-			offset_x = (offset_x + fragment.width + line_spacing)
+			offset_x = (offset_x + fragment.width + line.spacing)
 		end
 	end
 end
@@ -990,53 +1086,6 @@ function draw_entity(_entity)
 	end
 end
 
-local loaded_states = {}
-
-function check_loaded_state(_id, _position, _segment_coverage, _segment_length)
-	if not loaded_states[_id] then
-		local loaded_state = {}
-		
-		loaded_state.is_loaded = true
-		loaded_state.position = _position
-		loaded_state.segment_coverage = _segment_coverage
-		loaded_state.segment_length = _segment_length
-		
-		loaded_states[_id] = loaded_state
-	end
-	
-	local loaded_state = loaded_states[_id]
-
-	if ((_segment_coverage ~= loaded_state.segment_coverage) or
-		(_segment_length ~= loaded_state.segment_length)) then
-		if ((_segment_coverage >= 0.0) and 
-			(_segment_coverage <= _segment_length)) then
-			local diff = (_segment_coverage - loaded_state.segment_coverage)
-			
-			if ((_segment_coverage == 0.0) or 
-				((diff >= 0.0) and (diff <= 20.0))) then
-				loaded_state.is_loaded = false
-			end
-		end
-		
-		loaded_state.segment_coverage = _segment_coverage
-		loaded_state.segment_length = _segment_length
-	end	
-	
-	if ((_position.x ~= loaded_state.position.x) or
-		(_position.y ~= loaded_state.position.y) or 
-		(_position.z ~= loaded_state.position.z)) then
-		local distance = get_distance_3d(_position.x, _position.y, _position.z, loaded_state.position.x, loaded_state.position.y, loaded_state.position.z)
-		
-		if (distance <= 20.0) then
-			loaded_state.is_loaded = true
-		end
-		
-		loaded_state.position = _position
-	end	
-	
-	return loaded_state.is_loaded
-end
-
 function draw_guard(_guard_data_reader)
 	local action_to_color = 
 	{
@@ -1067,90 +1116,64 @@ function draw_guard(_guard_data_reader)
 		[0x10] = colors.natalya_skirt_color,
 		[0x11] = colors.janus_marine_color,
 		[0x12] = colors.russian_commandant_color,
-		[0x13] = colors.siberian_guard_1_color,
-		[0x14] = colors.hostage_color,
+		[0x13] = colors.siberian_guard_a_color,
+		[0x14] = colors.naval_officer_color,
 		[0x15] = colors.siberian_special_forces_color,
 		[0x20] = colors.civilian_color,
 		[0x23] = colors.scientist_color,
-		[0x25] = colors.siberian_guard_2_color,
+		[0x25] = colors.siberian_guard_b_color,
 		[0x26] = colors.arctic_commando_color,
 		[0x27] = colors.moonraker_elite_color,
 		[0x4F] = colors.natalya_fatigues_color			
 	}
 	
-	local id = _guard_data_reader:get_value("id")
-	
-	if (id == 0xFF) then
-		return
-	end	
-	
-	local position = _guard_data_reader:get_position()
+	local id = _guard_data_reader:get_value("id")	
+	local body_model = _guard_data_reader:get_value("body_model")
 	local collision_radius = _guard_data_reader:get_value("collision_radius")
 	local clipping_height = _guard_data_reader:get_value("clipping_height")		
-	local current_action = _guard_data_reader:get_value("current_action")
-	local body_model = _guard_data_reader:get_value("body_model")
 	
-	local color = (action_to_color[current_action] or body_to_color[body_model])
+	local state = guard_states[id]
+	local color = (action_to_color[state.action] or body_to_color[body_model])
 	local alpha = colors.default_alpha	
 	
-	local is_loaded = true
-	
-	-- Is the guard fading?
-	if (current_action == 0x05) then
+	if state.is_fading then
 		alpha = make_alpha_pair(constants.default_alpha * (_guard_data_reader:get_value("alpha") / 255.0))
-	-- Is the guard moving?
-	elseif ((current_action == 0xF) or (current_action == 0xE)) then
-		local target_position = nil
-		local segment_coverage = nil
-		local segment_length = nil
+	elseif state.is_moving then
+		local segment_line = {}
+		
+		segment_line.x1 = state.position.x
+		segment_line.y1 = clipping_height
+		segment_line.z1 = state.position.z		
+		segment_line.x2 = state.target_position.x
+		segment_line.y2 = clipping_height
+		segment_line.z2 = state.target_position.z				
+		segment_line.color = color
+		segment_line.alpha = (not state.is_loaded and colors.guard_unloaded_alpha)
+		
+		draw_line(segment_line)	
 	
-		if (current_action == 0xE) then
-			target_position = _guard_data_reader:get_value("path_target_position")
-			segment_coverage = _guard_data_reader:get_value("path_segment_coverage")
-			segment_length = _guard_data_reader:get_value("path_segment_length")			
-		else
-			target_position = _guard_data_reader:get_value("target_position")
-			segment_coverage = _guard_data_reader:get_value("segment_coverage")		
-			segment_length = _guard_data_reader:get_value("segment_length")	
-		end
-		
-		is_loaded = check_loaded_state(id, position, segment_coverage, segment_length)
-		
-		if not is_loaded then
-			local dir_x = ((target_position.x - position.x) / segment_length)
-			local dir_z = ((target_position.z - position.z) / segment_length)
+		if not state.is_loaded then
+			local dir_x = ((state.target_position.x - state.position.x) / state.segment_length)
+			local dir_z = ((state.target_position.z - state.position.z) / state.segment_length)
 			
 			local unloaded_entity = {}
 			
-			unloaded_entity.x = (position.x + (dir_x * segment_coverage))
+			unloaded_entity.x = (state.position.x + (dir_x * state.segment_coverage))
 			unloaded_entity.y = clipping_height
-			unloaded_entity.z = (position.z + (dir_z * segment_coverage))
+			unloaded_entity.z = (state.position.z + (dir_z * state.segment_coverage))
 			unloaded_entity.radius = collision_radius
 			unloaded_entity.color = color
 			unloaded_entity.alpha = colors.guard_unloaded_alpha
 			
 			draw_entity(unloaded_entity)
-		end
-		
-		local segment_line = {}
-		
-		segment_line.x1 = position.x
-		segment_line.y1 = clipping_height
-		segment_line.z1 = position.z		
-		segment_line.x2 = target_position.x
-		segment_line.y2 = clipping_height
-		segment_line.z2 = target_position.z				
-		segment_line.color = color
-		segment_line.alpha = (not is_loaded and colors.guard_unloaded_alpha)
-		
-		draw_line(segment_line)	
+		end		
 	end
 	
 	local loaded_entity = {}
 	
-	loaded_entity.x = position.x
+	loaded_entity.x = state.position.x
 	loaded_entity.y = clipping_height
-	loaded_entity.z = position.z
+	loaded_entity.z = state.position.z
 	loaded_entity.radius = collision_radius
 	loaded_entity.is_target = ((target.type == "Guard") and (target.id == id))
 	loaded_entity.color = color
@@ -1354,21 +1377,22 @@ function draw_output()
 	draw_text(text)
 end
 
-function is_safe_to_draw()
+function is_mission_running()
 	return ((GameData.get_mission_state() ~= 0) and 
 			(GameData.get_global_timer() ~= 0))
 end
 
 function on_load_state()
-	if not is_safe_to_draw() then
+	if not is_mission_running() then
 		return
 	end	
 		
 	load_objects()
+	reset_guards()
 end
 
 function on_update()
-	if not is_safe_to_draw() then
+	if not is_mission_running() then
 		return
 	end
 
@@ -1378,6 +1402,7 @@ function on_update()
 	update_target()
 	update_camera()	
 	update_objects()
+	update_guards()
 	
 	draw_level()
 	draw_objects()
