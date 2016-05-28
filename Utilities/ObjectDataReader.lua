@@ -57,11 +57,10 @@ function ObjectDataReader:get_value(_name)
 	return self.current_data:get_value(self.current_address, _name)
 end
 
--- TODO: Fix
-function ObjectDataReader:check_flag(_name)
+function ObjectDataReader:is_collidable()
 	local flags = self:get_value("flags_1")
 
-	return flags and bit.check(flags, 8) or false
+	return (flags and bit.check(flags, 8) or false)
 end
 
 function ObjectDataReader:get_collision_data()

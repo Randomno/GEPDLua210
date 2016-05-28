@@ -415,7 +415,7 @@ function load_objects()
 	objects.quadtree = init_quadtree(level.bounds)
 	
 	ObjectDataReader.for_each(function(_object_data_reader)
-		if _object_data_reader:check_flag("force_collisions") then
+		if _object_data_reader:is_collidable() then
 			load_object(_object_data_reader)
 		end
 	end)
@@ -707,7 +707,7 @@ function update_static_objects()
 
 				table.remove(objects.static, i)
 			end
-		elseif not static_object.data_reader:check_flag("force_collisions") then
+		elseif not static_object.data_reader:is_collidable() then
 			table.remove(objects.static, i)
 		end
 	end
