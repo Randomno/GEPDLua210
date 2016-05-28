@@ -294,7 +294,9 @@ function init_level_data()
 	level_data["Bunker 1"] = parse_map_file("Maps/Bunker 1.map")
 	level_data["Silo"] = parse_map_file("Maps/Silo.map")
 	level_data["Frigate"] = parse_map_file("Maps/Frigate.map")
+	level_data["Surface 2"] = parse_map_file("Maps/Surface 2.map")
 	level_data["Bunker 2"] = parse_map_file("Maps/Bunker 2.map")
+	level_data["Statue"] = parse_map_file("Maps/Statue.map")
 	
 	for name, data in pairs(level_data) do
 		for index, edge in ipairs(data.edges) do
@@ -595,9 +597,11 @@ function on_switch_mode()
 end
 
 function on_switch_floor()
-	if (camera.mode == 1) then
-		camera.floor = (math.mod(camera.floor, #level.floors) + 1)
+	if ((camera.mode == 2) and (#level.floors > 1)) then
+		target = {}
 	end
+		
+	camera.floor = (math.mod(camera.floor, #level.floors) + 1)
 end
 
 function on_zoom_in()
