@@ -76,7 +76,8 @@ constants.inactive_alpha_factor = 0.25
 constants.view_cone_scale = 4.0
 constants.view_cone_angle = 90.0
 constants.target_circle_scale = 3.0
-constants.target_pick_radius = 5.0
+constants.max_picking_distance = 5.0
+constants.max_picking_frames = 10
 constants.min_guard_displacement = 0.1
 constants.max_guard_displacement = 20.0
 constants.projectile_radius = 8.0
@@ -396,7 +397,7 @@ function load_object(_object_data_reader)
 		local state = _object_data_reader:get_value("state")
 	
 		-- Is the door opening or closing?
-		if (state == 0x01) or (state == 0x02) then
+		if ((state == 0x01) or (state == 0x02)) then
 			load_dynamic_object(_object_data_reader)
 		else
 			load_static_object(_object_data_reader)
@@ -526,30 +527,37 @@ function pick_target(_x, _y)
 	
 	local closest_target_and_distance = targets_and_distances[1]
 	
-	if (closest_target_and_distance.distance > (constants.target_pick_radius * camera.zoom)) then
+	if (closest_target_and_distance.distance > (constants.max_picking_distance * camera.zoom)) then
 		return {}
 	end
 	
 	return closest_target_and_distance.target
 end
 
+local mouse_start_frame = nil
+
 function on_mouse_button_down(_x, _y)
-	target = pick_target(_x, _y)
+	mouse_start_frame = emu.framecount()
 end
 
 function on_mouse_button_up(_x, _y)
+	if ((emu.framecount() - mouse_start_frame) <= constants.max_picking_frames) then
+		target = pick_target(_x, _y)
+	end
 end
 
-function on_mouse_drag(_diff_x, _diff_y)	
-	 if (camera.mode == 1) then
-		 camera.position.x = (camera.position.x - pixels_to_units(_diff_x))
-		 camera.position.z = (camera.position.z - pixels_to_units(_diff_y))
-		 
-		 camera.position.x = math.max(camera.position.x, level.bounds.min_x)
-		 camera.position.x = math.min(camera.position.x, level.bounds.max_x)
-		 camera.position.z = math.max(camera.position.z, level.bounds.min_z)
-		 camera.position.z = math.min(camera.position.z, level.bounds.max_z)
-	 end
+function on_mouse_drag(_diff_x, _diff_y)
+	if (camera.mode == 2) then
+		target = {}
+	end
+	
+	camera.position.x = (camera.position.x - pixels_to_units(_diff_x))
+	camera.position.z = (camera.position.z - pixels_to_units(_diff_y))
+	 
+	camera.position.x = math.max(camera.position.x, level.bounds.min_x)
+	camera.position.x = math.min(camera.position.x, level.bounds.max_x)
+	camera.position.z = math.max(camera.position.z, level.bounds.min_z)
+	camera.position.z = math.min(camera.position.z, level.bounds.max_z)	
 end
 
 local previous_mouse =  nil
@@ -557,20 +565,22 @@ local previous_mouse =  nil
 function update_mouse()
 	current_mouse = input.getmouse()
 	
-	if (previous_mouse) and (previous_mouse.Left) then	
-		if (current_mouse.Left) then
+	if previous_mouse and previous_mouse.Left then	
+		if current_mouse.Left then
 			local diff_x = (current_mouse.X - previous_mouse.X)
 			local diff_y = (current_mouse.Y - previous_mouse.Y)
 		
-			on_mouse_drag(diff_x, diff_y)
+			if ((diff_x ~= 0) and (diff_y ~= 0)) then
+				on_mouse_drag(diff_x, diff_y)
+			end
 		else	
-			on_mouse_button_up(current_mouse.X, current_mouse.Y)							
+			on_mouse_button_up(current_mouse.X, current_mouse.Y)						
 		end
-	elseif (current_mouse.Left) then
-		if (current_mouse.X >= 0) and
+	elseif current_mouse.Left then
+		if ((current_mouse.X >= 0) and
 			(current_mouse.Y >= 0) and
 			(current_mouse.X < screen.width) and
-			(current_mouse.Y < screen.height) then			
+			(current_mouse.Y < screen.height)) then			
 			on_mouse_button_down(current_mouse.X, current_mouse.Y)
 		else
 			current_mouse.Left = false
@@ -703,7 +713,7 @@ function update_static_objects()
 	end
 	
 	-- Rebuild quadtree (if needed)
-	if #objects.static ~= count then 
+	if (#objects.static ~= count) then 
 		objects.quadtree = init_quadtree(level.bounds)
 	
 		for index, object in ipairs(objects.static) do
@@ -721,7 +731,7 @@ function update_dynamic_objects()
 			local state = dynamic_object.data_reader:get_value("state")
 			
 			-- Is the door not opening or closing?
-			if (state ~= 0x01) and (state ~= 0x02) then			
+			if ((state ~= 0x01) and (state ~= 0x02)) then			
 				load_static_object(dynamic_object.data_reader)
 				
 				table.remove(objects.dynamic, i)
