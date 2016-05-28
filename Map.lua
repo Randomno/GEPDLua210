@@ -297,6 +297,7 @@ function init_level_data()
 	level_data["Surface 2"] = parse_map_file("Maps/Surface 2.map")
 	level_data["Bunker 2"] = parse_map_file("Maps/Bunker 2.map")
 	level_data["Statue"] = parse_map_file("Maps/Statue.map")
+	level_data["Archives"] = parse_map_file("Maps/Archives.map")
 	
 	for name, data in pairs(level_data) do
 		for index, edge in ipairs(data.edges) do
@@ -572,7 +573,7 @@ function update_mouse()
 			local diff_x = (current_mouse.X - previous_mouse.X)
 			local diff_y = (current_mouse.Y - previous_mouse.Y)
 		
-			if ((diff_x ~= 0) and (diff_y ~= 0)) then
+			if ((diff_x ~= 0) or (diff_y ~= 0)) then
 				on_mouse_drag(diff_x, diff_y)
 			end
 		else	
