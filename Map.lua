@@ -240,7 +240,7 @@ function parse_map_file(_filename)
 	
 	io.input(file)
 	
-	local output = {}
+	local map = {}
 	
 	while true do
 		local group = io.read("*l")
@@ -250,13 +250,13 @@ function parse_map_file(_filename)
 		end
 			
 		if (group == "[Scale]") then
-			output.scale = parse_scale()
+			map.scale = parse_scale()
 		elseif (group == "[Bounds]") then
-			output.bounds = parse_bounds(output.scale)
+			map.bounds = parse_bounds(map.scale)
 		elseif (group == "[Floors]") then
-			output.floors = parse_floors(output.scale)
+			map.floors = parse_floors(map.scale)
 		elseif (group == "[Edges]") then
-			output.edges = parse_edges(output.scale)
+			map.edges = parse_edges(map.scale)
 		else
 			error("Invalid group type: " .. group)
 		end
@@ -264,7 +264,7 @@ function parse_map_file(_filename)
 
 	io.close(file)
 	
-	return output
+	return map
 end
 
 function init_quadtree(_bounds, _edges)
@@ -285,31 +285,21 @@ end
 
 local level_data = {}
 
--- TODO: Use GameData.mission_index_to_name instead (when all maps are available)
 function init_level_data()
-	level_data["Dam"] = parse_map_file("Maps/Dam.map")
-	level_data["Facility"] = parse_map_file("Maps/Facility.map")
-	level_data["Runway"] = parse_map_file("Maps/Runway.map")
-	level_data["Surface 1"] = parse_map_file("Maps/Surface 1.map")
-	level_data["Bunker 1"] = parse_map_file("Maps/Bunker 1.map")
-	level_data["Silo"] = parse_map_file("Maps/Silo.map")
-	level_data["Frigate"] = parse_map_file("Maps/Frigate.map")
-	level_data["Surface 2"] = parse_map_file("Maps/Surface 2.map")
-	level_data["Bunker 2"] = parse_map_file("Maps/Bunker 2.map")
-	level_data["Statue"] = parse_map_file("Maps/Statue.map")
-	level_data["Archives"] = parse_map_file("Maps/Archives.map")
-	
-	for name, data in pairs(level_data) do
+	for mission_index, mission_name in pairs(GameData.mission_index_to_name) do
+		local data = parse_map_file("Maps/" .. mission_name .. ".map")
+		
 		for index, edge in ipairs(data.edges) do
 			edge.color = colors.level_color
 		end
+	
+		level_data[mission_name] = data
 	end
 end
 
 local level = {}
 
 function load_level(_name)
-	--local scale, bounds, edges = parse_map_file("Maps/" .. _name .. ".map")
 	level = level_data[_name]
 	
 	level.bounds.width = (level.bounds.max_x - level.bounds.min_x)
