@@ -1,5 +1,7 @@
 require "Data\\ObjectData"
 
+-- TODO: Find a more suitable name for this class, since it represents 
+--		 all spawned weapons, and not just projectiles.
 ProjectileData = {}
 
 ProjectileData.start_address = 0x071E80

@@ -41,8 +41,9 @@ PhysicalObjectData.metadata =
 	{["offset"] = 0x0C, ["size"] = 0x04, ["type"] = "bitfield", ["name"] = "flags_2"},
 	{["offset"] = 0x10, ["size"] = 0x04, ["type"] = "hex", 		["name"] = "position_data_pointer"},
 	{["offset"] = 0x18, ["size"] = 0x40, ["type"] = "matrix", 	["name"] = "transform"},
-	{["offset"] = 0x58, ["size"] = 0x10, ["type"] = "vector",	["name"] = "position"},
+	{["offset"] = 0x58, ["size"] = 0x0C, ["type"] = "vector",	["name"] = "position"},
 	{["offset"] = 0x68, ["size"] = 0x04, ["type"] = "hex",		["name"] = "collision_data_pointer"},
+	{["offset"] = 0x6C, ["size"] = 0x04, ["type"] = "hex",		["name"] = "motion_data_pointer"},	
 	{["offset"] = 0x70, ["size"] = 0x04, ["type"] = "float",	["name"] = "damage_received"},
 	{["offset"] = 0x74, ["size"] = 0x04, ["type"] = "float",	["name"] = "health"},
 	{["offset"] = 0x78, ["size"] = 0x04, ["type"] = "color",	["name"] = "current_color"},
@@ -85,6 +86,7 @@ WeaponData.type = 0x08
 WeaponData.size = 0x08
 WeaponData.metadata =
 {
+	{["offset"] = 0x00, ["size"] = 0x1, ["type"] = "hex", ["name"] = "type"}
 }
 
 CharacterData = Data.create()

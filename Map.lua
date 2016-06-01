@@ -1261,17 +1261,29 @@ function draw_bond()
 	draw_entity(entity)
 end
 
+-- TODO: Draw all weapons, not just projectiles?
 function draw_projectile(_projectile_data_reader)
 	local image_to_color = 
 	{
-		[0xC4] = colors.projectile_grenade_color,
-		[0xC7] = colors.projectile_remote_mine_color,
-		[0xC8] = colors.projectile_proximity_mine_color,
-		[0xC9] = colors.projectile_timed_mine_color
+		[0x0BA] = colors.projectile_default_color, 			-- Knife
+		[0x0C4] = colors.projectile_grenade_color, 			-- Hand grenade
+		[0x0C7] = colors.projectile_remote_mine_color, 		-- Remote mine
+		[0x0C8] = colors.projectile_proximity_mine_color, 	-- Proximity mine
+		[0x0C9] = colors.projectile_timed_mine_color, 		-- Timed mine
+		[0x0CA] = colors.projectile_default_color, 			-- Rocket
+		[0x0CB] = colors.projectile_default_color, 			-- Grenade
+		[0x0F5] = colors.projectile_default_color, 			-- Covert modem/Tracker bug
+		[0x111] = colors.projectile_default_color 			-- Plastique
 	}
 
 	local position = _projectile_data_reader:get_value("position")
 	local image = _projectile_data_reader:get_value("image")
+	
+	local color = image_to_color[image]
+	
+	if not color then
+		return
+	end
 	
 	local entity = {}
 	
@@ -1279,7 +1291,7 @@ function draw_projectile(_projectile_data_reader)
 	entity.y = position.y
 	entity.z = position.z
 	entity.radius = constants.projectile_radius
-	entity.color = (image_to_color[image] or colors.projectile_default_color)
+	entity.color = color
 	entity.is_target = true
 	
 	draw_entity(entity)
