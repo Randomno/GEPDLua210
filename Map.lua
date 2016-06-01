@@ -128,15 +128,15 @@ colors.view_cone_color = make_rgb(1.0, 1.0, 1.0)
 colors.view_cone_alpha = make_alpha_pair(0.2)
 colors.velocity_line_color = make_rgb(0.2, 0.8, 0.4)
 
-colors.bond_stealth_color = make_rgb(0.085, 0.1, 0.14)
+colors.bond_stealth_suit_color = make_rgb(0.085, 0.1, 0.14)
 colors.bond_fatigues_color = make_rgb(0.27, 0.27, 0.1)
 colors.bond_parka_color = make_rgb(0.68, 0.70, 0.75)
 colors.bond_dress_suit_color = make_rgb(0.2, 0.2, 0.32)
 colors.bond_tuxedo_color = make_rgb(0.09, 0.09, 0.09)
 colors.natalya_skirt_color = make_rgb(0.40, 0.85, 0.90)
 colors.natalya_fatigues_color = make_rgb(0.55, 0.65, 0.65)
-colors.trevelyan_shirt_color = make_rgb(0.15, 0.15, 0.15)
-colors.trevelyan_stealth_color = make_rgb(0.1, 0.1, 0.15)
+colors.trevelyan_dress_shirt_color = make_rgb(0.15, 0.15, 0.15)
+colors.trevelyan_stealth_suit_color = make_rgb(0.1, 0.1, 0.15)
 colors.boris_color = make_rgb(0.65, 0.35, 0.15)
 colors.ouromov_color = make_rgb(0.375, 0.325, 0.2)
 colors.valentin_color = make_rgb(0.15, 0.2, 0.235)
@@ -144,7 +144,7 @@ colors.xenia_color = make_rgb(0.2, 0.25, 0.25)
 colors.baron_samedi_color = make_rgb(0.95, 0.9, 0.85)
 colors.jaws_color = make_rgb(1.0, 1.0, 1.0)
 
-colors.jungle_commando_color = make_rgb(0.24, 0.26, 0.1)
+colors.jungle_commando_color = make_rgb(0.34, 0.41, 0.1)
 colors.russian_soldier_color = make_rgb(0.25, 0.36, 0.14)
 colors.russian_infantry_color = make_rgb(0.55, 0.51, 0.33)
 colors.janus_special_forces_color = make_rgb(0.1, 0.11, 0.08)
@@ -157,12 +157,12 @@ colors.siberian_special_forces_color = make_rgb(0.57, 0.60, 0.64)
 colors.civilian_color = make_rgb(0.36, 0.19, 0.20)
 colors.scientist_color = make_rgb(1.0, 1.0, 1.0)	
 colors.arctic_commando_color = make_rgb(0.38, 0.48, 0.59)
-colors.moonraker_elite_color = make_rgb(0.65, 0.63, 0.24)
+colors.moonraker_elite_color = make_rgb(0.80, 0.78, 0.24)
 
 colors.guard_dying_color = make_rgb(0.5, 0.0, 0.0)
-colors.guard_injured_color = make_rgb(1.0, 0.3, 0.3)
+colors.guard_bleeding_color = make_rgb(1.0, 0.3, 0.3)
 colors.guard_shooting_color = make_rgb(1.0, 1.0, 0.0)
-colors.guard_throwing_grenade_color = make_rgb(0.0, 0.5, 0.0)
+colors.guard_throwing_grenade_color = make_rgb(0.0, 0.3, 0.0)
 colors.guard_unloaded_alpha = make_alpha_pair(0.3)
 
 colors.projectile_default_color = make_rgb(0.6, 0.6, 0.6)
@@ -1096,7 +1096,7 @@ function draw_guard(_guard_data_reader)
 	{
 		[0x04] = colors.guard_dying_color,
 		[0x05] = colors.guard_dying_color,
-		[0x06] = colors.guard_injured_color,
+		[0x06] = colors.guard_bleeding_color,
 		[0x08] = colors.guard_shooting_color,
 		[0x09] = colors.guard_shooting_color,
 		[0x0A] = colors.guard_shooting_color,
@@ -1112,8 +1112,8 @@ function draw_guard(_guard_data_reader)
 		[0x04] = colors.janus_special_forces_color,
 		[0x06] = colors.boris_color,
 		[0x07] = colors.ouromov_color,
-		[0x08] = colors.trevelyan_shirt_color,
-		[0x09] = colors.trevelyan_stealth_color,
+		[0x08] = colors.trevelyan_dress_shirt_color,
+		[0x09] = colors.trevelyan_stealth_suit_color,
 		[0x0A] = colors.valentin_color,
 		[0x0B] = colors.xenia_color,
 		[0x0C] = colors.baron_samedi_color,
@@ -1196,7 +1196,7 @@ function draw_bond()
 	{
 		[0x00] = colors.bond_dress_suit_color,
 		[0x02] = colors.bond_fatigues_color,
-		[0x03] = colors.bond_stealth_color,
+		[0x03] = colors.bond_stealth_suit_color,
 		[0x04] = colors.bond_parka_color,
 		[0x08] = colors.bond_tuxedo_color
 	}
