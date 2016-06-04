@@ -112,7 +112,7 @@ function make_inactive_alpha(_a)
 end
 
 function make_alpha_pair(_a)
-	return {active = make_alpha(_a), inactive = make_inactive_alpha(_a)}
+	return {["active"] = make_alpha(_a), ["inactive"] = make_inactive_alpha(_a)}
 end
 
 local colors = {}
@@ -1311,6 +1311,7 @@ function draw_explosion(_explosion_data_reader)
 	local max_damage_radius = _explosion_data_reader:get_type_value("max_damage_radius")
 	
 	local next_damage_frame = _explosion_data_reader:get_value("next_damage_frame")
+	local prev_damage_frame = (next_damage_frame - damage_interval)
 	
 	local damage_interval = (animation_length / 4)
 	local damage_speed = ((max_damage_radius - min_damage_radius) / animation_length)	
@@ -1324,7 +1325,7 @@ function draw_explosion(_explosion_data_reader)
 	if (animation_frame <= ExplosionData.no_damage_frame_count) then
 		damage_radius = (animation_frame * (damage_radius / ExplosionData.no_damage_frame_count))
 	else
-		local damage_frame = (animation_frame - (next_damage_frame - damage_interval))
+		local damage_frame = (animation_frame - prev_damage_frame)
 
 		if (next_damage_frame < animation_length) then
 			if (damage_frame > fadeout_length) then
