@@ -1310,12 +1310,12 @@ function draw_explosion(_explosion_data_reader)
 	local min_damage_radius = _explosion_data_reader:get_type_value("min_damage_radius")
 	local max_damage_radius = _explosion_data_reader:get_type_value("max_damage_radius")
 	
-	local next_damage_frame = _explosion_data_reader:get_value("next_damage_frame")
-	local prev_damage_frame = (next_damage_frame - damage_interval)
-	
 	local damage_interval = (animation_length / 4)
 	local damage_speed = ((max_damage_radius - min_damage_radius) / animation_length)	
-	local damage_radius = (min_damage_radius + (animation_frame * damage_speed))	
+	local damage_radius = (min_damage_radius + (animation_frame * damage_speed))
+	
+	local next_damage_frame = _explosion_data_reader:get_value("next_damage_frame")
+	local prev_damage_frame = (next_damage_frame - damage_interval)
 	
 	local shockwave_length = (constants.shockwave_to_damage_interval_ratio * damage_interval)
 	local fadeout_length = (damage_interval - shockwave_length)
