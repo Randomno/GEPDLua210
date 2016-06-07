@@ -72,7 +72,7 @@ target.height = nil
 local constants = {}
 
 constants.default_alpha = 0.7
-constants.inactive_alpha_factor = 0.25
+constants.inactive_alpha_factor = 0.15
 constants.view_cone_scale = 4.0
 constants.view_cone_angle = 90.0
 constants.target_circle_scale = 3.0
@@ -125,7 +125,7 @@ colors.object_color = make_rgb(1.0, 1.0, 1.0)
 colors.entity_edge_color = make_rgb(0.0, 0.0, 0.0)
 colors.target_circle_color = make_rgb(1.0, 0.0, 0.0)
 colors.view_cone_color = make_rgb(1.0, 1.0, 1.0)
-colors.view_cone_alpha = make_alpha_pair(0.2)
+colors.view_cone_alpha = make_alpha_pair(0.1)
 colors.velocity_line_color = make_rgb(0.2, 0.8, 0.4)
 
 colors.bond_stealth_suit_color = make_rgb(0.085, 0.1, 0.14)
