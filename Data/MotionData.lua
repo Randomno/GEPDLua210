@@ -11,7 +11,7 @@ MotionData.metadata =
 	{["offset"] = 0x20, ["size"] = 0x40, ["type"] = "matrix", 	["name"] = "transform"},	
 	{["offset"] = 0x88, ["size"] = 0x04, ["type"] = "hex", 		["name"] = "guard_position_data_pointer"},
 	{["offset"] = 0x8C, ["size"] = 0x04, ["type"] = "float", 	["name"] = "elasticity"},
-	{["offset"] = 0x90, ["size"] = 0x04, ["type"] = "unsigned", ["name"] = "bounce_counter"},	
+	{["offset"] = 0x90, ["size"] = 0x04, ["type"] = "unsigned", ["name"] = "bounce_count"},	
 	{["offset"] = 0xA8, ["size"] = 0x04, ["type"] = "unsigned", ["name"] = "movement_timer"},
 	{["offset"] = 0xAC, ["size"] = 0x04, ["type"] = "unsigned", ["name"] = "last_bounce_time"}
 }
