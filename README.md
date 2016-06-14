@@ -1,11 +1,3 @@
-# What is this? #
-
-This repository contains various Lua scripts for use with the BizHawk emulator, mainly targeting Goldeneye 007 for Nintendo 64. 
-
-# Who am I? #
-
-I'm a professional programmer and a veteran speedrunner of Goldeneye 007 and Perfect Dark. I've also created numerous TASes for these games.
-
 # How to run: #
 
 1. Download the latest version of BizHawk (tasvideos.org).
