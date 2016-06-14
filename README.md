@@ -6,7 +6,7 @@ This repository contains various Lua scripts for use with the BizHawk emulator, 
 
 I'm a professional programmer and a veteran speedrunner of Goldeneye 007 and Perfect Dark. I've also created numerous TASes for these games.
 
-# How to run #
+# How to run: #
 
 1. Download the latest version of BizHawk (tasvideos.org).
 2. Clone this repository.
