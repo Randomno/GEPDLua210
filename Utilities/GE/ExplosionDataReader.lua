@@ -1,5 +1,5 @@
-require "Data\\ExplosionData"
-require "Data\\PositionData"
+require "Data\\GE\\ExplosionData"
+require "Data\\GE\\PositionData"
 
 ExplosionDataReader = {}
 ExplosionDataReader.__index = ExplosionDataReader

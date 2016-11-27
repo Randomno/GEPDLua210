@@ -1,6 +1,6 @@
-require "Data\\ObjectData"
-require "Data\\ConditionData"
-require "Data\\CollisionData"
+require "Data\\GE\\ObjectData"
+require "Data\\GE\\ConditionData"
+require "Data\\GE\\CollisionData"
 
 ObjectDataReader = {}
 ObjectDataReader.__index = ObjectDataReader

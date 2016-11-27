@@ -1,4 +1,4 @@
-require "Data\\IntroData"
+require "Data\\GE\\IntroData"
 
 IntroDataReader = {}
 IntroDataReader.__index = IntroDataReader

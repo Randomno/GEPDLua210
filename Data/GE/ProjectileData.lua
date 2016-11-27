@@ -1,4 +1,4 @@
-require "Data\\ObjectData"
+require "Data\\GE\\ObjectData"
 
 -- TODO: Find a more suitable name for this class, since it represents 
 --		 all spawned weapons, and not just projectiles.

@@ -1,5 +1,5 @@
-require "Data\\GuardData"
-require "Data\\PositionData"
+require "Data\\GE\\GuardData"
+require "Data\\GE\\PositionData"
 
 GuardDataReader = {}
 GuardDataReader.__index = GuardDataReader

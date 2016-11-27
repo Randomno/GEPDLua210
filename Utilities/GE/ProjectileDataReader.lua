@@ -1,4 +1,4 @@
-require "Data\\ProjectileData"
+require "Data\\GE\\ProjectileData"
 
 ProjectileDataReader = {}
 ProjectileDataReader.__index = ProjectileDataReader

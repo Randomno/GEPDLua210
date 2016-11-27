@@ -1,11 +1,11 @@
-require "Data\\GameData"
-require "Data\\PlayerData"
+require "Data\\GE\\GameData"
+require "Data\\GE\\PlayerData"
 require "Utilities\\QuadTree"
-require "Utilities\\IntroDataReader"
-require "Utilities\\GuardDataReader"
-require "Utilities\\ObjectDataReader"
-require "Utilities\\ProjectileDataReader"
-require "Utilities\\ExplosionDataReader"
+require "Utilities\\GE\\IntroDataReader"
+require "Utilities\\GE\\GuardDataReader"
+require "Utilities\\GE\\ObjectDataReader"
+require "Utilities\\GE\\ProjectileDataReader"
+require "Utilities\\GE\\ExplosionDataReader"
 
 local screen = {}
 
@@ -287,7 +287,7 @@ local level_data = {}
 
 function init_level_data()
 	for mission_index, mission_name in pairs(GameData.mission_index_to_name) do
-		local data = parse_map_file("Maps/" .. mission_name .. ".map")
+		local data = parse_map_file("Maps/GE/" .. mission_name .. ".map")
 		
 		for index, edge in ipairs(data.edges) do
 			edge.color = colors.level_color

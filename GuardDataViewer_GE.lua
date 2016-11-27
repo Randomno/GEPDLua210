@@ -1,4 +1,4 @@
-require "Data\\GuardData"
+require "Data\\GE\\GuardData"
 
 local guard_data_mnemonics = 
 {
@@ -29,16 +29,18 @@ function format_value(value, metadata)
 	if not value then
 		return string.format("%s: N/A", metadata.name)
 	end
+	
+	local value_string = nil
 
 	if metadata.type == "hex" then
-		return string.format("%s: 0x%X", metadata.name, value)
+		value_string = string.format("0x%X", value)
 	elseif metadata.type == "unsigned" then
-		return string.format("%s: %d", metadata.name, value)
+		value_string = string.format("%d", value)
 	elseif metadata.type == "float" then
-		return string.format("%s: %.4f", metadata.name, value)
+		value_string = string.format("%.4f", value)
 	elseif metadata.type == "vector" then
-		if (metadata.size == 0x0C) then
-			return string.format("%s: {%.4f, %.4f, %.4f}", metadata.name, value.x, value.y, value.z)
+		if (metadata.size == 0x0C) then	
+			value_string = string.format("{%.4f, %.4f, %.4f}", value.x, value.y, value.z)
 		else
 			error("Unsupported vector size")		
 		end		
@@ -49,10 +51,12 @@ function format_value(value, metadata)
 			mnemonic = string.format("unknown (0x%X)", value)
 		end			
 	
-		return string.format("%s: %s", metadata.name, mnemonic)		
+		value_string = string.format("%s: %s", metadata.name, mnemonic)		
 	else
 		error("Invalid guard value type")
 	end
+	
+	return string.format("%s: %s", metadata.name, value_string)
 end
 
 function on_update_text(_slot)
@@ -71,7 +75,12 @@ function on_update_text(_slot)
 			value = GuardData:get_value(slot_address, metadata.name)
 		end
 		
-		local value_string = format_value(value, metadata)
+		local value_address = (slot_address + metadata.offset)
+		local value_string = string.format("[0x%X] %s", value_address, format_value(value, metadata))
+		
+		if (string.len(value_string) > guard_data_output_text_max_length) then
+			value_string = string.format("%s...", string.sub(value_string, 0, (guard_data_output_text_max_length - 4)))
+		end
 		
 		guard_data_string = (guard_data_string .. value_string .. "\n")
 	end
@@ -116,7 +125,7 @@ end
 guard_data_button_size_x = 75
 guard_data_button_size_y = 25
 
-guard_data_dialog_size_x = 480
+guard_data_dialog_size_x = 540
 guard_data_dialog_size_y = 920
 
 guard_data_prev_slot_button_pos_x = (guard_data_dialog_size_x / 2) - 5 - guard_data_button_size_x - 10
@@ -129,6 +138,9 @@ guard_data_output_text_pos_x = 0
 guard_data_output_text_pos_y = 0
 guard_data_output_text_size_x = guard_data_dialog_size_x
 guard_data_output_text_size_y = guard_data_dialog_size_y - 100
+guard_data_output_text_width = 7
+guard_data_output_text_border = 30
+guard_data_output_text_max_length = ((guard_data_output_text_size_x - guard_data_output_text_border) / guard_data_output_text_width)
 
 guard_data_slot_text_pos_x = 10
 guard_data_slot_text_pos_y = guard_data_prev_slot_button_pos_y + 5
