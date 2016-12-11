@@ -2,6 +2,7 @@ require "Data\\Data"
 
 PositionData = Data.create()
 
+PositionData.start_address_pointer = 0x8009A2F8
 PositionData.size = 0x48
 PositionData.object_types =
 {

@@ -21,11 +21,11 @@ DoorData.metadata =
 	{["offset"] = 0x7C, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "timer"}
 }
 
-DoorThicknessData = Data.create()
+DoorScaleData = Data.create()
 
-DoorThicknessData.type = 0x02
-DoorThicknessData.size = 0x08
-DoorThicknessData.metadata = 
+DoorScaleData.type = 0x02
+DoorScaleData.size = 0x08
+DoorScaleData.metadata = 
 {
 }
 
@@ -198,13 +198,12 @@ TagData.metadata =
 ObjectiveData = Data.create()
 
 ObjectiveData.type = 0x17
-ObjectiveData.size = nil
+ObjectiveData.size = 0x10
 ObjectiveData.metadata =
 {
 	{["offset"] = 0x04, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "objective_number"},
 	{["offset"] = 0x08, ["size"] = 0x4, ["type"] = "hex", 		["name"] = "text_preset"},
-	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "difficulty"},	
-	{["offset"] = 0x10, ["size"] = nil, ["type"] = "list", 		["name"] = "condition_list"},
+	{["offset"] = 0x0C, ["size"] = 0x4, ["type"] = "unsigned", 	["name"] = "difficulty"}
 }
 
 BriefingData = Data.create()
@@ -345,7 +344,7 @@ ObjectData.start_pointer_address = 0x075D0C
 ObjectData.data_types =
 {
 	[0x01] = DoorData,
-	[0x02] = DoorThicknessData,
+	[0x02] = DoorScaleData,
 	[0x03] = PhysicalObjectData,
 	[0x04] = KeyData,
 	[0x05] = AlarmData,

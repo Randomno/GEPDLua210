@@ -335,28 +335,69 @@ end
 
 local objects = {}
 
-function get_object_edges(_object_data_reader)
-	local edges = {}	
-	local points, min_y, max_y = _object_data_reader:get_collision_data()
+function get_object_edges(_object_data_reader)	
+	local edges = {}
 	
-	for i = 1, #points, 1 do
-		local j = ((i % #points) + 1)
-		
+	local volume = _object_data_reader:get_bounding_volume()	
+	local vertices = volume.vertices	
+	
+	for i = 1, #vertices, 1 do
+		local j = ((i % #vertices) + 1)
+
 		local edge = {}
 		
-		edge.x1 = points[i].x
-		edge.y1 = min_y
-		edge.z1 = points[i].y			
-		edge.x2 = points[j].x
-		edge.y2 = max_y
-		edge.z2 = points[j].y	
+		-- Polygon?
+		if (volume.type == 0x1) then
+			edge.x1 = vertices[i].x
+			edge.y1 = vertices[i].y
+			edge.z1 = vertices[i].z		
+			edge.x2 = vertices[j].x
+			edge.y2 = vertices[j].y
+			edge.z2 = vertices[j].z	
+		-- Prism?
+		else 
+			edge.x1 = vertices[i].x
+			edge.y1 = volume.bottom
+			edge.z1 = vertices[i].y	
+			edge.x2 = vertices[j].x
+			edge.y2 = volume.top
+			edge.z2 = vertices[j].y		
+		end
 		
 		edge.color = colors.object_color
 		
 		table.insert(edges, edge)
 	end
+
+	return edges	
+end
+
+function get_object_radius(_object_data_reader)
+	local volume = _object_data_reader:get_bounding_volume()
+	local radius = 0.0
 	
-	return edges
+	-- Polygon or Prism?
+	if ((volume.type == 0x1) or (volume.type == 0x2)) then
+		local position = _object_data_reader:get_position()
+		local vertices = volume.vertices
+		
+		for index, vertex in ipairs(vertices) do	
+			local distance = 0.0
+			
+			if (volume.type == 0x1) then
+				distance = get_distance_2d(vertex.x, vertex.z, position.x, position.z)
+			else
+				distance = get_distance_2d(vertex.x, vertex.y, position.x, position.z)
+			end
+			
+			radius = math.max(radius, distance)
+		end
+	-- Cylinder?
+	elseif (volume.type == 0x3) then
+		radius = volume.radius
+	end
+	
+	return radius
 end
 
 function load_static_object(_object_data_reader)	
@@ -371,45 +412,29 @@ function load_static_object(_object_data_reader)
 end
 
 function load_dynamic_object(_object_data_reader)
-	local dynamic_object = {}
+	local dynamic_object = {}		
 	
-	-- TODO: Handle door displacement
-	local position = _object_data_reader:get_value("position")	
-	local edges = get_object_edges(_object_data_reader)
-	
-	local max_distance = 0.0
-	
-	for index, edge in ipairs(edges) do
-		local distance = get_distance_2d(edge.x1, edge.z1, position.x, position.z)
-		
-		max_distance = math.max(max_distance, distance)
-	end
-	
-	dynamic_object.bounding_radius = max_distance
+	dynamic_object.radius = get_object_radius(_object_data_reader)
 	dynamic_object.data_reader = _object_data_reader:clone()
 
 	table.insert(objects.dynamic, dynamic_object)
 end
 
-function load_object(_object_data_reader)
-	local is_door = (_object_data_reader.current_data.type == 0x01)
-	local is_vehicle = (_object_data_reader.current_data.type == 0x27)
-	local is_tank = (_object_data_reader.current_data.type == 0x2D)
-	
-	if is_door then
+function is_dynamic(_object_data_reader)
+	-- Is this a door?
+	if (_object_data_reader.current_data.type == 0x01) then
 		local state = _object_data_reader:get_value("state")
-	
+		
 		-- Is the door opening or closing?
-		if ((state == 0x01) or (state == 0x02)) then
-			load_dynamic_object(_object_data_reader)
-		else
-			load_static_object(_object_data_reader)
-		end	
-	elseif is_vehicle or is_tank then
-		load_dynamic_object(_object_data_reader)	
-	else
-		load_static_object(_object_data_reader)
+		if ((state == 0x01) or (state == 0x02)) then	
+			return true
+		end
+	elseif (_object_data_reader:check_bits("flags_3", 0x00000020) or		-- Controllable?
+			_object_data_reader:check_bits("flags_3", 0x00000001)) then		-- Movable?
+		return true
 	end
+	
+	return false
 end
 
 function load_objects()	
@@ -419,7 +444,11 @@ function load_objects()
 	
 	ObjectDataReader.for_each(function(_object_data_reader)
 		if _object_data_reader:is_collidable() then
-			load_object(_object_data_reader)
+			if (is_dynamic(_object_data_reader)) then
+				load_dynamic_object(_object_data_reader)	
+			else
+				load_static_object(_object_data_reader)			
+			end
 		end
 	end)
 end
@@ -498,7 +527,7 @@ function update_mission()
 		mission.name = "Carrington Institute"--GameData.get_mission_name(mission.index)
 	
 		load_level("CarringtonInstitute")
-		--load_objects()
+		load_objects()
 		
 		reset_camera()
 		reset_target()
@@ -702,17 +731,11 @@ function update_static_objects()
 	for i = count, 1, -1 do
 		local static_object = objects.static[i]
 		
-		-- Is this a door?
-		if (static_object.data_reader.current_data.type == 0x01) then
-			local state = static_object.data_reader:get_value("state")
+		if not static_object.data_reader:is_collidable() then
+			table.remove(objects.static, i)
+		elseif is_dynamic(static_object.data_reader) then
+			load_dynamic_object(static_object.data_reader)
 			
-			-- Is the door opening or closing?
-			if ((state == 0x01) or (state == 0x02)) then
-				load_dynamic_object(static_object.data_reader)
-
-				table.remove(objects.static, i)
-			end
-		elseif not static_object.data_reader:is_collidable() then
 			table.remove(objects.static, i)
 		end
 	end
@@ -730,18 +753,14 @@ end
 function update_dynamic_objects()
 	for i = #objects.dynamic, 1, -1 do
 		local dynamic_object = objects.dynamic[i]
-		
-		-- Is this a door?
-		if (dynamic_object.data_reader.current_data.type == 0x01) then
-			local state = dynamic_object.data_reader:get_value("state")
 			
-			-- Is the door not opening or closing?
-			if ((state ~= 0x01) and (state ~= 0x02)) then			
-				load_static_object(dynamic_object.data_reader)
+		if not dynamic_object.data_reader:is_collidable() then
+			table.remove(objects.dynamic, i)			
+		elseif not is_dynamic(dynamic_object.data_reader) then
+			load_static_object(dynamic_object.data_reader)
 				
-				table.remove(objects.dynamic, i)
-			end
-		end	
+			table.remove(objects.dynamic, i)			
+		end
 	end
 end
 
@@ -885,7 +904,7 @@ function draw_line(_line)
 	end
 	
 	local is_active = ((get_floor(min_height) <= camera.floor) and 
-					   (get_floor(max_height) >= camera.floor))						   
+					   (get_floor(max_height) >= camera.floor))					   
 	local color = (_line.color + get_current_alpha(_line.alpha, is_active))
 
 	gui.drawLine(line.x1, line.y1, line.x2, line.y2, color)	
@@ -910,7 +929,7 @@ function draw_circle(_circle)
 		return
 	end
 			
-	local is_active = (get_floor(_circle.y) == camera.floor)
+	local is_active = (get_floor(_circle.y) == camera.floor)	
 	local alpha = get_current_alpha(_circle.alpha, is_active)
 	
 	local inner_color = (_circle.inner_color and (_circle.inner_color + alpha) or nil)
@@ -1050,17 +1069,32 @@ end
 
 function draw_dynamic_objects(_bounds)
 	for index, object in ipairs(objects.dynamic) do
-		local position = object.data_reader:get_value("position")
+		local position = object.data_reader:get_position()
 		
-		if (((position.x + object.bounding_radius) > _bounds.x1) and
-			((position.z + object.bounding_radius) > _bounds.z1) and
-			((position.x - object.bounding_radius) < _bounds.x2) and
-			((position.z - object.bounding_radius) < _bounds.z2)) then
-			local edges = get_object_edges(object.data_reader)
-			
-			for index, edge in ipairs(edges) do
-				draw_line(edge)
+		if (((position.x + object.radius) > _bounds.x1) and
+			((position.z + object.radius) > _bounds.z1) and
+			((position.x - object.radius) < _bounds.x2) and
+			((position.z - object.radius) < _bounds.z2)) then
+			-- Cylinder?
+			if (object.data_reader:get_bounding_type() == 0x3) then
+				local circle = {}
+				
+				circle.x = position.x
+				circle.y = position.y
+				circle.z = position.z
+				circle.radius = object.radius
+				circle.outer_color = colors.object_color
+				
+				draw_circle(circle)
+			-- Polygon or Prism?
+			else
+				local edges = get_object_edges(object.data_reader)
+				
+				for index, edge in ipairs(edges) do
+					draw_line(edge)
+				end
 			end
+			
 		end
 	end
 end
@@ -1429,11 +1463,11 @@ function on_update()
 	update_keyboard()
 	update_target()
 	update_camera()	
-	--update_objects()
+	update_objects()
 	update_guards()
 	
 	draw_level()
-	--draw_objects()
+	draw_objects()
 	draw_guards()
 	draw_joanna()
 	--draw_projectiles()

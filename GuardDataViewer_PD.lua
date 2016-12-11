@@ -1,4 +1,4 @@
-require "Data\\GE\\GuardData"
+require "Data\\PD\\GuardData"
 
 local guard_data_mnemonics = 
 {
@@ -6,7 +6,7 @@ local guard_data_mnemonics =
 	{
 		[0x1] = "standing",
 		[0x2] = "ducking",
-		[0x3] = "wasting time",
+		[0x3] = "punching/reloading/wasting time",
 		[0x4] = "dying",
 		[0x5] = "fading",
 		[0x6] = "hurting",

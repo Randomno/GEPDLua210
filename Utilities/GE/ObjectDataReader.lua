@@ -35,9 +35,12 @@ function ObjectDataReader:next_object()
 	if self:reached_end() then
 		return
 	end
-
+	
+	self.current_address = (self.current_address + self.current_data.size)
+	
+	-- Is this objective data?
 	if (self.current_data.type == 0x17) then
-		local condition_address = (self.current_address + self.current_data:get_metadata("condition_list").offset)
+		local condition_address = self.current_address
 		local condition_data = ConditionData.get_data(condition_address)
 		
 		while condition_data do
@@ -46,21 +49,25 @@ function ObjectDataReader:next_object()
 		end
 		
 		self.current_address = (condition_address + 4)
-	else
-		self.current_address = (self.current_address + self.current_data.size)
 	end
 	
 	self.current_data = ObjectData.get_data(self.current_address)
+end
+
+function ObjectDataReader:has_value(_name)
+	return self.current_data:has_value(_name)
 end
 
 function ObjectDataReader:get_value(_name)
 	return self.current_data:get_value(self.current_address, _name)
 end
 
-function ObjectDataReader:is_collidable()
-	local flags = self:get_value("flags_1")
+function ObjectDataReader:check_bits(_name, _mask)
+	return self.current_data:check_bits(self.current_address, _name, _mask)
+end
 
-	return (flags and bit.check(flags, 8) or false)
+function ObjectDataReader:is_collidable()
+	return (self:has_value("flags_1") and self:check_bits("flags_1", 0x00000100))
 end
 
 function ObjectDataReader:get_collision_data()

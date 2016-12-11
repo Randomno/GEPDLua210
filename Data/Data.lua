@@ -61,15 +61,16 @@ local function read_vector(_address, _metadata)
 	return vector
 end
 
+function Data:has_value(_name)
+	return (self:get_metadata(_name) ~= nil)
+end
+
 function Data:get_value(_address, _name)
 	local metadata = self:get_metadata(_name)
 	
-	-- TODO: Throw error instead.
 	if not metadata then
-		return nil
-	end
-	
-	if (metadata.size == 0x01) then
+		error(string.format("Invalid name: %s", _name))
+	elseif (metadata.size == 0x01) then
 		return mainmemory.read_u8(_address + metadata.offset)
 	elseif (metadata.size == 0x02) then
 		return mainmemory.read_u16_be(_address + metadata.offset)
@@ -82,6 +83,20 @@ function Data:get_value(_address, _name)
 	elseif (metadata.type == "vector") then
 		return read_vector(_address, metadata)
 	else	
-		error("Invalid size value")
+		error(string.format("Invalid size: 0x%X", metadata.size))
 	end
+end
+
+function Data:check_bits(_address, _name, _mask)
+	local metadata = self:get_metadata(_name)
+	
+	if not metadata then
+		error(string.format("Invalid name: %s", _name))
+	elseif (metadata.type ~= "bitfield") then
+		error(string.format("Invalid type: %s", metadata.type))
+	end
+	
+	local bits = self:get_value(_address, _name)
+	
+	return (bit.band(bits, _mask) == _mask)
 end
