@@ -86,17 +86,17 @@ constants.shockwave_intensity = 0.3
 constants.max_fadeout_intensity = 0.8
 
 function make_color(_r, _g, _b, _a)
-	local a_hex = bit.band(math.floor((_a * 255) + 0.5), 0xFF)
-	local r_hex = bit.band(math.floor((_r * 255) + 0.5), 0xFF)
-	local g_hex = bit.band(math.floor((_g * 255) + 0.5), 0xFF)
-	local b_hex = bit.band(math.floor((_b * 255) + 0.5), 0xFF)
-	
-	a_hex = bit.lshift(a_hex, (8 * 3))
-	r_hex = bit.lshift(r_hex, (8 * 2))
-	g_hex = bit.lshift(g_hex, (8 * 1))
-	b_hex = bit.lshift(b_hex, (8 * 0))
-	
-	return (a_hex + r_hex + g_hex + b_hex)
+	local a_hex = math.floor((_a * 255) + 0.5) & 0xFF
+	local r_hex = math.floor((_r * 255) + 0.5) & 0xFF
+	local g_hex = math.floor((_g * 255) + 0.5) & 0xFF
+	local b_hex = math.floor((_b * 255) + 0.5) & 0xFF
+
+	a_hex = a_hex << (8 * 3)
+	r_hex = r_hex << (8 * 2)
+	g_hex = g_hex << (8 * 1)
+	b_hex = b_hex << (8 * 0)
+
+	return a_hex | r_hex | g_hex | b_hex
 end
 
 function make_rgb(_r, _g, _b)
@@ -584,7 +584,7 @@ function update_mouse()
 end
 
 function on_switch_mode()
-	camera.mode = (math.mod(camera.mode, #camera.modes) + 1)
+	camera.mode = (camera.mode % #camera.modes + 1)
 end
 
 function on_switch_floor()
@@ -592,7 +592,7 @@ function on_switch_floor()
 		target = {}
 	end
 		
-	camera.floor = (math.mod(camera.floor, #level.floors) + 1)
+	camera.floor = (camera.floor % #level.floors + 1)
 end
 
 function on_zoom_in()
@@ -1375,10 +1375,10 @@ function draw_output()
 	local floor_index = level.floors[camera.floor].index	
 	local floor_number = ((floor_index < 0) and math.abs(floor_index) or (floor_index + 1))
 	local floor_type = ((floor_index < 0) and "basement" or "floor")	
-	local floor_suffix = floor_suffixes[math.min(math.mod(floor_number, 10), 4)]
+	local floor_suffix = floor_suffixes[math.min(floor_number % 10, 4)]
 	
 	table.insert(fragments, string.format("%d%s %s", floor_number, floor_suffix, floor_type))
-	table.insert(fragments, string.format("X: %d Z: %d", camera.position.x, camera.position.z))
+	table.insert(fragments, string.format("X: %d Z: %d", math.floor(camera.position.x), math.floor(camera.position.z)))
 	table.insert(fragments, string.format("Zoom: %.1fx", camera.zoom))
 	
 	local text = {}

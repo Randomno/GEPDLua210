@@ -98,5 +98,5 @@ function Data:check_bits(_address, _name, _mask)
 	
 	local bits = self:get_value(_address, _name)
 	
-	return (bit.band(bits, _mask) == _mask)
+	return (bits & _mask == _mask)
 end
